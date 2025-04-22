@@ -1,0 +1,4002 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NetSuite Drag & Drop PDF Template Builder</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/ace/1.15.0/ace.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/ace/1.15.0/mode-xml.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/interact.js/1.10.17/interact.min.js"></script>
+    <style>
+        :root {
+            --primary-color: #2d5986;
+            --secondary-color: #4a7aaa;
+            --dark-color: #1c3858;
+            --light-color: #ecf0f5;
+            --success-color: #28a745;
+            --warning-color: #ffc107;
+            --danger-color: #dc3545;
+            --info-color: #17a2b8;
+            --border-color: #dee2e6;
+        }
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #f5f7fa;
+            color: #333;
+            line-height: 1.6;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+        header {
+            background-color: var(--dark-color);
+            color: white;
+            padding: 10px 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+        .logo {
+            font-size: 1.5rem;
+            font-weight: bold;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .header-actions {
+            display: flex;
+            gap: 10px;
+        }
+        .workspace {
+            display: flex;
+            flex: 1;
+            overflow: hidden;
+        }
+        .component-sidebar {
+            width: 250px;
+            background-color: white;
+            border-right: 1px solid var(--border-color);
+            padding: 15px;
+            display: flex;
+            flex-direction: column;
+            overflow-y: auto;
+        }
+        .component-category {
+            margin-bottom: 15px;
+        }
+        .category-title {
+            font-weight: bold;
+            padding: 5px 0;
+            color: var(--dark-color);
+            font-size: 0.9rem;
+            text-transform: uppercase;
+            border-bottom: 1px solid var(--border-color);
+            margin-bottom: 8px;
+        }
+        .component-item {
+            padding: 8px 10px;
+            margin-bottom: 5px;
+            background-color: #f8f9fa;
+            border: 1px solid var(--border-color);
+            border-radius: 4px;
+            cursor: move;
+            font-size: 0.9rem;
+            transition: all 0.2s;
+            user-select: none;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .component-item:hover {
+            background-color: var(--light-color);
+            transform: translateY(-2px);
+            box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+        }
+        .component-item i {
+            font-size: 0.85rem;
+            color: var(--dark-color);
+        }
+        .design-area {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+        .toolbar {
+            padding: 10px;
+            background-color: #f8f9fa;
+            border-bottom: 1px solid var(--border-color);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .toolbar-tabs {
+            display: flex;
+            gap: 5px;
+        }
+        .toolbar-tab {
+            padding: 8px 15px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-weight: 500;
+            font-size: 0.9rem;
+            transition: background-color 0.2s;
+        }
+        .toolbar-tab:hover {
+            background-color: rgba(0,0,0,0.05);
+        }
+        .toolbar-tab.active {
+            background-color: var(--primary-color);
+            color: white;
+        }
+        .tools {
+            display: flex;
+            gap: 5px;
+        }
+        .tool-btn {
+            background-color: white;
+            border: 1px solid var(--border-color);
+            color: var(--dark-color);
+            padding: 6px 10px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 0.85rem;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+        .tool-btn:hover {
+            background-color: var(--light-color);
+        }
+        .tool-btn.primary {
+            background-color: var(--primary-color);
+            color: white;
+            border-color: var(--primary-color);
+        }
+        .tool-btn.primary:hover {
+            background-color: var(--secondary-color);
+        }
+        .canvas-container {
+            flex: 1;
+            overflow: auto;
+            padding: 20px;
+            background-color: #eaeef2;
+            position: relative;
+        }
+        .canvas {
+            width: 8.5in;
+            height: 11in;
+            background-color: white;
+            margin: 0 auto;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+            position: relative;
+            transform-origin: top center;
+            display: flex;
+            flex-direction: column;
+        }
+        .canvas-wrapper {
+            position: relative;
+            margin: 0 auto;
+            width: 8.5in;
+        }
+        .page-ruler {
+            position: absolute;
+            left: 0;
+            width: 100%;
+            height: 20px;
+            background-color: #f8f9fa;
+            border-bottom: 1px solid var(--border-color);
+            display: flex;
+        }
+        .ruler-mark {
+            position: absolute;
+            height: 8px;
+            border-left: 1px solid #aaa;
+            bottom: 0;
+            font-size: 8px;
+            color: #666;
+        }
+        .guide-v, .guide-h {
+            position: absolute;
+            background-color: rgba(0, 162, 255, 0.5);
+            z-index: 100;
+        }
+        .guide-v {
+            width: 1px;
+            height: 100%;
+            cursor: col-resize;
+        }
+        .guide-h {
+            height: 1px;
+            width: 100%;
+            cursor: row-resize;
+        }
+        .canvas-area {
+            padding: 0.5in;
+            flex: 1;
+            position: relative;
+            overflow: hidden;
+        }
+        .grid {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-size: 20px 20px;
+            background-image: 
+                linear-gradient(to right, rgba(0,0,0,0.05) 1px, transparent 1px),
+                linear-gradient(to bottom, rgba(0,0,0,0.05) 1px, transparent 1px);
+            pointer-events: none;
+            opacity: 0.5;
+        }
+        .template-element {
+            position: absolute;
+            background-color: white;
+            border: 1px solid transparent;
+            padding: 10px;
+            min-width: 100px;
+            min-height: 50px;
+            cursor: move;
+            user-select: none;
+            transition: box-shadow 0.2s, border-color 0.2s;
+            box-sizing: border-box;
+        }
+        .template-element:hover {
+            border-color: var(--secondary-color);
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+        .template-element.selected {
+            border: 1px solid var(--primary-color);
+            box-shadow: 0 0 0 2px rgba(45, 89, 134, 0.3);
+        }
+        .resize-handle {
+            position: absolute;
+            width: 10px;
+            height: 10px;
+            background-color: var(--primary-color);
+            border-radius: 50%;
+        }
+        .nw {
+            top: -5px;
+            left: -5px;
+            cursor: nwse-resize;
+        }
+        .ne {
+            top: -5px;
+            right: -5px;
+            cursor: nesw-resize;
+        }
+        .sw {
+            bottom: -5px;
+            left: -5px;
+            cursor: nesw-resize;
+        }
+        .se {
+            bottom: -5px;
+            right: -5px;
+            cursor: nwse-resize;
+        }
+        .n {
+            top: -5px;
+            left: 50%;
+            transform: translateX(-50%);
+            cursor: ns-resize;
+        }
+        .e {
+            right: -5px;
+            top: 50%;
+            transform: translateY(-50%);
+            cursor: ew-resize;
+        }
+        .s {
+            bottom: -5px;
+            left: 50%;
+            transform: translateX(-50%);
+            cursor: ns-resize;
+        }
+        .w {
+            left: -5px;
+            top: 50%;
+            transform: translateY(-50%);
+            cursor: ew-resize;
+        }
+        .element-label {
+            position: absolute;
+            top: -18px;
+            left: 0;
+            font-size: 10px;
+            color: var(--dark-color);
+            background-color: rgba(255,255,255,0.8);
+            padding: 2px 4px;
+            border-radius: 2px;
+            white-space: nowrap;
+            pointer-events: none;
+            display: none;
+        }
+        .template-element:hover .element-label {
+            display: block;
+        }
+        .element-toolbar {
+            position: absolute;
+            top: -30px;
+            right: 0;
+            display: flex;
+            gap: 5px;
+            opacity: 0;
+            transition: opacity 0.2s;
+            pointer-events: none;
+        }
+        .template-element:hover .element-toolbar {
+            opacity: 1;
+            pointer-events: all;
+        }
+        .element-btn {
+            background-color: white;
+            border: 1px solid var(--border-color);
+            width: 24px;
+            height: 24px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 2px;
+            cursor: pointer;
+            font-size: 12px;
+            transition: all 0.2s;
+        }
+        .element-btn:hover {
+            background-color: var(--light-color);
+        }
+        .element-btn.delete:hover {
+            background-color: var(--danger-color);
+            color: white;
+            border-color: var(--danger-color);
+        }
+        .properties-panel {
+            width: 280px;
+            background-color: white;
+            border-left: 1px solid var(--border-color);
+            padding: 15px;
+            display: flex;
+            flex-direction: column;
+            overflow-y: auto;
+        }
+        
+        /* Field Explorer Styles */
+        .field-explorer-results {
+            max-height: 300px;
+            overflow-y: auto;
+            border: 1px solid var(--border-color);
+            margin: 10px 0;
+            border-radius: 4px;
+        }
+        .field-table {
+            border-collapse: collapse;
+            width: 100%;
+        }
+        .field-table th {
+            position: sticky;
+            top: 0;
+            background-color: var(--primary-color);
+            color: white;
+            padding: 8px;
+            text-align: left;
+            font-size: 0.9rem;
+        }
+        .field-table td {
+            padding: 8px;
+            border-bottom: 1px solid var(--border-color);
+            font-size: 0.85rem;
+        }
+        .field-table tr:nth-child(even) {
+            background-color: #f5f7fa;
+        }
+        .field-table tr:hover {
+            background-color: var(--light-color);
+        }
+        .field-copy-btn {
+            background-color: var(--light-color);
+            border: 1px solid var(--border-color);
+            border-radius: 3px;
+            padding: 3px 6px;
+            font-size: 0.8rem;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .field-copy-btn:hover {
+            background-color: var(--secondary-color);
+            color: white;
+        }
+        .field-example-list {
+            font-size: 0.85rem;
+            color: #555;
+            margin: 10px 0;
+        }
+        .field-example {
+            margin-bottom: 8px;
+        }
+        .field-example code {
+            background-color: #f1f1f1;
+            padding: 2px 5px;
+            border-radius: 3px;
+            font-family: monospace;
+            font-size: 0.9em;
+        }
+        
+        /* Validation Results Styles */
+        .validation-results {
+            margin-top: 10px;
+        }
+        .validation-item {
+            padding: 10px;
+            margin-bottom: 10px;
+            border-radius: 4px;
+            font-size: 0.9rem;
+        }
+        .validation-error {
+            background-color: rgba(220, 53, 69, 0.1);
+            border-left: 3px solid var(--danger-color);
+        }
+        .validation-warning {
+            background-color: rgba(255, 193, 7, 0.1);
+            border-left: 3px solid var(--warning-color);
+        }
+        .validation-success {
+            background-color: rgba(40, 167, 69, 0.1);
+            border-left: 3px solid var(--success-color);
+        }
+        .validation-item-title {
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+        .validation-loading {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+            color: #555;
+        }
+        
+        /* Versions Panel */
+        .versions-panel {
+            position: absolute;
+            top: 50px;
+            bottom: 0;
+            right: 0;
+            width: 250px;
+            background-color: white;
+            border-left: 1px solid var(--border-color);
+            overflow-y: auto;
+            transform: translateX(100%);
+            transition: transform 0.3s;
+            z-index: 10;
+        }
+        .versions-panel.show {
+            transform: translateX(0);
+        }
+        .versions-header {
+            padding: 15px;
+            border-bottom: 1px solid var(--border-color);
+            font-weight: bold;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .versions-list {
+            padding: 10px;
+        }
+        .version-item {
+            padding: 10px;
+            border-bottom: 1px solid var(--border-color);
+            cursor: pointer;
+        }
+        .version-item:hover {
+            background-color: var(--light-color);
+        }
+        .version-item.active {
+            background-color: rgba(74, 122, 170, 0.1);
+            border-left: 3px solid var(--primary-color);
+        }
+        .version-name {
+            font-weight: bold;
+            font-size: 0.9rem;
+            margin-bottom: 5px;
+        }
+        .version-date {
+            font-size: 0.8rem;
+            color: #666;
+            margin-bottom: 5px;
+        }
+        .version-notes {
+            font-size: 0.85rem;
+            color: #555;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        .version-actions {
+            display: flex;
+            gap: 5px;
+            margin-top: 8px;
+        }
+        .version-btn {
+            background-color: var(--light-color);
+            border: 1px solid var(--border-color);
+            border-radius: 3px;
+            padding: 3px 6px;
+            font-size: 0.8rem;
+            cursor: pointer;
+        }
+        .version-btn:hover {
+            background-color: var(--secondary-color);
+            color: white;
+        }
+        .properties-title {
+            font-weight: bold;
+            color: var(--dark-color);
+            margin-bottom: 15px;
+            padding-bottom: 5px;
+            border-bottom: 1px solid var(--border-color);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .property-group {
+            margin-bottom: 15px;
+        }
+        .property-group-title {
+            font-weight: 600;
+            font-size: 0.9rem;
+            color: var(--dark-color);
+            margin-bottom: 8px;
+        }
+        .form-group {
+            margin-bottom: 10px;
+        }
+        .form-label {
+            display: block;
+            font-size: 0.85rem;
+            margin-bottom: 4px;
+            color: #555;
+        }
+        .form-control {
+            width: 100%;
+            padding: 6px 8px;
+            border: 1px solid var(--border-color);
+            border-radius: 4px;
+            font-size: 0.9rem;
+        }
+        .form-control:focus {
+            outline: none;
+            border-color: var(--primary-color);
+            box-shadow: 0 0 0 2px rgba(45, 89, 134, 0.2);
+        }
+        .form-row {
+            display: flex;
+            gap: 10px;
+        }
+        .form-group-half {
+            flex: 1;
+        }
+        select.form-control {
+            background-image: url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%23333' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
+            background-repeat: no-repeat;
+            background-position: right 8px center;
+            background-size: 16px;
+            padding-right: 32px;
+            appearance: none;
+        }
+        .color-input {
+            display: flex;
+            align-items: center;
+        }
+        .color-input input[type="color"] {
+            width: 30px;
+            height: 30px;
+            padding: 0;
+            border: 1px solid var(--border-color);
+            margin-right: 8px;
+            border-radius: 4px;
+        }
+        .code-editor-container {
+            display: flex;
+            flex-direction: column;
+            height: 100%;
+            display: none;
+        }
+        .code-editor {
+            height: 100%;
+            border: 1px solid var(--border-color);
+        }
+        .preview-container {
+            display: flex;
+            flex-direction: column;
+            height: 100%;
+            display: none;
+        }
+        .preview-iframe {
+            flex: 1;
+            border: none;
+            width: 100%;
+            height: 100%;
+        }
+        .no-element-selected {
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            height: 100%;
+            color: #888;
+            text-align: center;
+            padding: 20px;
+        }
+        .no-element-icon {
+            font-size: 48px;
+            margin-bottom: 15px;
+            color: #ccc;
+        }
+        .tooltip {
+            position: absolute;
+            background-color: rgba(0,0,0,0.8);
+            color: white;
+            padding: 5px 8px;
+            border-radius: 4px;
+            font-size: 12px;
+            white-space: nowrap;
+            z-index: 1000;
+            pointer-events: none;
+            opacity: 0;
+            transition: opacity 0.2s;
+        }
+        .tooltip.visible {
+            opacity: 1;
+        }
+        .dropdown {
+            position: relative;
+            display: inline-block;
+        }
+        .dropdown-menu {
+            position: absolute;
+            top: 100%;
+            right: 0;
+            background-color: white;
+            border: 1px solid var(--border-color);
+            border-radius: 4px;
+            min-width: 180px;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+            z-index: 1000;
+            display: none;
+        }
+        .dropdown-menu.show {
+            display: block;
+        }
+        .dropdown-item {
+            padding: 8px 15px;
+            cursor: pointer;
+            transition: background-color 0.2s;
+            font-size: 0.9rem;
+        }
+        .dropdown-item:hover {
+            background-color: var(--light-color);
+        }
+        .dropdown-divider {
+            border-top: 1px solid var(--border-color);
+            margin: 5px 0;
+        }
+        .notification {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            padding: 12px 20px;
+            background-color: var(--success-color);
+            color: white;
+            border-radius: 4px;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+            z-index: 1000;
+            opacity: 0;
+            transform: translateY(20px);
+            transition: all 0.3s;
+            font-size: 0.9rem;
+        }
+        .notification.error {
+            background-color: var(--danger-color);
+        }
+        .notification.show {
+            opacity: 1;
+            transform: translateY(0);
+        }
+        .empty-state {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100%;
+            text-align: center;
+            padding: 20px;
+            color: #666;
+        }
+        .empty-state-icon {
+            font-size: 48px;
+            margin-bottom: 15px;
+            color: #ccc;
+        }
+        .empty-state-text {
+            max-width: 350px;
+            margin-bottom: 20px;
+        }
+        /* Font icons using Unicode characters */
+        .icon {
+            font-family: sans-serif;
+            font-style: normal;
+            font-weight: normal;
+            display: inline-block;
+            text-align: center;
+            width: 16px;
+        }
+        .loading-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: rgba(255,255,255,0.8);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 9999;
+            display: none;
+        }
+        .spinner {
+            width: 40px;
+            height: 40px;
+            border: 4px solid rgba(0,0,0,0.1);
+            border-left-color: var(--primary-color);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        /* Modal styles */
+        .modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: rgba(0,0,0,0.5);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 2000;
+            opacity: 0;
+            visibility: hidden;
+            transition: all 0.3s;
+        }
+        .modal.open {
+            opacity: 1;
+            visibility: visible;
+        }
+        .modal-content {
+            background-color: white;
+            border-radius: 6px;
+            width: 500px;
+            max-width: 90%;
+            box-shadow: 0 5px 30px rgba(0,0,0,0.2);
+        }
+        .modal-header {
+            padding: 15px;
+            border-bottom: 1px solid var(--border-color);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .modal-title {
+            font-weight: bold;
+            font-size: 1.1rem;
+            color: var(--dark-color);
+        }
+        .modal-close {
+            background: none;
+            border: none;
+            font-size: 1.5rem;
+            cursor: pointer;
+            color: #888;
+            padding: 0;
+            line-height: 1;
+        }
+        .modal-body {
+            padding: 15px;
+            max-height: 70vh;
+            overflow-y: auto;
+        }
+        .modal-footer {
+            padding: 15px;
+            border-top: 1px solid var(--border-color);
+            display: flex;
+            justify-content: flex-end;
+            gap: 10px;
+        }
+        .template-preview-card {
+            border: 1px solid var(--border-color);
+            border-radius: 4px;
+            padding: 10px;
+            margin-bottom: 15px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .template-preview-card:hover {
+            border-color: var(--primary-color);
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+        }
+        .template-preview-img {
+            width: 100%;
+            height: 150px;
+            background-color: #f5f5f5;
+            margin-bottom: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #888;
+            font-size: 0.8rem;
+            text-align: center;
+        }
+        .template-preview-title {
+            font-weight: 600;
+            font-size: 0.95rem;
+            margin-bottom: 5px;
+        }
+        .template-preview-desc {
+            font-size: 0.85rem;
+            color: #666;
+        }
+        @media (max-width: 992px) {
+            .workspace {
+                flex-direction: column;
+            }
+            .component-sidebar {
+                width: 100%;
+                max-height: 200px;
+                border-right: none;
+                border-bottom: 1px solid var(--border-color);
+            }
+            .properties-panel {
+                width: 100%;
+                max-height: 300px;
+                border-left: none;
+                border-top: 1px solid var(--border-color);
+            }
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <div class="logo">
+            <span class="icon">⚙️</span>
+            NetSuite Template Builder
+        </div>
+        <div class="header-actions">
+            <button id="saveBtn" class="tool-btn primary">
+                <span class="icon">💾</span>
+                Save
+            </button>
+            <button id="exportBtn" class="tool-btn">
+                <span class="icon">📤</span>
+                Export
+            </button>
+            <button id="fieldExplorerBtn" class="tool-btn">
+                <span class="icon">🔍</span>
+                Field Explorer
+            </button>
+            <button id="validateBtn" class="tool-btn">
+                <span class="icon">✓</span>
+                Validate
+            </button>
+            <div class="dropdown">
+                <button id="templateBtn" class="tool-btn">
+                    <span class="icon">📄</span>
+                    Templates
+                </button>
+                <div id="templateDropdown" class="dropdown-menu">
+                    <div class="dropdown-item" data-template="invoice">Invoice Template</div>
+                    <div class="dropdown-item" data-template="salesorder">Sales Order Template</div>
+                    <div class="dropdown-item" data-template="purchaseorder">Purchase Order Template</div>
+                    <div class="dropdown-item" data-template="statement">Customer Statement</div>
+                    <div class="dropdown-item" data-template="check">Check Template</div>
+                    <div class="dropdown-divider"></div>
+                    <div class="dropdown-item" id="importTemplateBtn">Import Template</div>
+                    <div class="dropdown-item" id="blankTemplateBtn">Blank Template</div>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <div class="workspace">
+        <!-- Component Sidebar -->
+        <div class="component-sidebar">
+            <div class="component-category">
+                <div class="category-title">Document Structure</div>
+                <div class="component-item" draggable="true" data-type="header">
+                    <span class="icon">📑</span>
+                    Header Section
+                </div>
+                <div class="component-item" draggable="true" data-type="footer">
+                    <span class="icon">📑</span>
+                    Footer Section
+                </div>
+                <div class="component-item" draggable="true" data-type="section">
+                    <span class="icon">📑</span>
+                    Content Section
+                </div>
+            </div>
+
+            <div class="component-category">
+                <div class="category-title">Basic Elements</div>
+                <div class="component-item" draggable="true" data-type="text">
+                    <span class="icon">T</span>
+                    Text Block
+                </div>
+                <div class="component-item" draggable="true" data-type="image">
+                    <span class="icon">🖼️</span>
+                    Image
+                </div>
+                <div class="component-item" draggable="true" data-type="table">
+                    <span class="icon">🔲</span>
+                    Table
+                </div>
+                <div class="component-item" draggable="true" data-type="line">
+                    <span class="icon">➖</span>
+                    Divider Line
+                </div>
+            </div>
+
+            <div class="component-category">
+                <div class="category-title">Transaction Elements</div>
+                <div class="component-item" draggable="true" data-type="company-info">
+                    <span class="icon">🏢</span>
+                    Company Info
+                </div>
+                <div class="component-item" draggable="true" data-type="customer-info">
+                    <span class="icon">👤</span>
+                    Customer Info
+                </div>
+                <div class="component-item" draggable="true" data-type="transaction-details">
+                    <span class="icon">📋</span>
+                    Transaction Details
+                </div>
+                <div class="component-item" draggable="true" data-type="line-items">
+                    <span class="icon">📦</span>
+                    Line Items Table
+                </div>
+                <div class="component-item" draggable="true" data-type="totals">
+                    <span class="icon">💲</span>
+                    Totals Section
+                </div>
+                <div class="component-item" draggable="true" data-type="signature">
+                    <span class="icon">✏️</span>
+                    Signature Field
+                </div>
+            </div>
+
+            <div class="component-category">
+                <div class="category-title">Advanced Elements</div>
+                <div class="component-item" draggable="true" data-type="conditional">
+                    <span class="icon">❓</span>
+                    Conditional Block
+                </div>
+                <div class="component-item" draggable="true" data-type="loop">
+                    <span class="icon">🔄</span>
+                    Loop Block
+                </div>
+                <div class="component-item" draggable="true" data-type="custom-freemarker">
+                    <span class="icon">🔣</span>
+                    Custom FreeMarker
+                </div>
+                <div class="component-item" draggable="true" data-type="page-number">
+                    <span class="icon">🔢</span>
+                    Page Numbering
+                </div>
+            </div>
+        </div>
+
+        <!-- Design Area -->
+        <div class="design-area">
+            <div class="toolbar">
+                <div class="toolbar-tabs">
+                    <div class="toolbar-tab active" data-tab="design">Design</div>
+                    <div class="toolbar-tab" data-tab="code">Code</div>
+                    <div class="toolbar-tab" data-tab="preview">Preview</div>
+                </div>
+                <div class="tools">
+                    <button class="tool-btn" id="undoBtn">
+                        <span class="icon">↩️</span>
+                        Undo
+                    </button>
+                    <button class="tool-btn" id="redoBtn">
+                        <span class="icon">↪️</span>
+                        Redo
+                    </button>
+                    <button class="tool-btn" id="toggleGridBtn">
+                        <span class="icon">🔲</span>
+                        Grid
+                    </button>
+                    <button class="tool-btn" id="zoomOutBtn">
+                        <span class="icon">➖</span>
+                    </button>
+                    <span id="zoomLevel">100%</span>
+                    <button class="tool-btn" id="zoomInBtn">
+                        <span class="icon">➕</span>
+                    </button>
+                </div>
+            </div>
+            
+            <div class="canvas-container" id="designTab">
+                <div class="canvas-wrapper" id="canvasWrapper">
+                    <div class="canvas" id="canvas">
+                        <div class="canvas-area" id="canvasArea">
+                            <div class="grid" id="grid"></div>
+                            <div class="empty-state">
+                                <div class="empty-state-icon">📄</div>
+                                <div class="empty-state-text">Drag and drop components from the left sidebar to start building your template</div>
+                                <button class="tool-btn primary" id="emptyStateTemplateBtn">
+                                    <span class="icon">📋</span>
+                                    Use Template
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="code-editor-container" id="codeTab">
+                <div id="codeEditor" class="code-editor"></div>
+            </div>
+            
+            <div class="preview-container" id="previewTab">
+                <iframe id="previewFrame" class="preview-iframe"></iframe>
+            </div>
+        </div>
+
+        <!-- Properties Panel -->
+        <div class="properties-panel">
+            <div class="properties-title">
+                Properties
+                <button id="closePropertiesBtn" class="element-btn">
+                    <span class="icon">✖</span>
+                </button>
+            </div>
+            
+            <div id="propertiesPanelContent">
+                <div class="no-element-selected">
+                    <div class="no-element-icon">👈</div>
+                    <p>Select an element on the canvas to edit its properties</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Template Modal -->
+    <div class="modal" id="templateModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <div class="modal-title">Choose a Template</div>
+                <button class="modal-close" id="closeTemplateModal">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="template-preview-card" data-template="invoice">
+                    <div class="template-preview-img">
+                        Invoice Template Preview
+                    </div>
+                    <div class="template-preview-title">Invoice Template</div>
+                    <div class="template-preview-desc">Standard invoice template with company info, line items, and totals</div>
+                </div>
+                
+                <div class="template-preview-card" data-template="salesorder">
+                    <div class="template-preview-img">
+                        Sales Order Template Preview
+                    </div>
+                    <div class="template-preview-title">Sales Order Template</div>
+                    <div class="template-preview-desc">Complete sales order template with billing and shipping details</div>
+                </div>
+                
+                <div class="template-preview-card" data-template="purchaseorder">
+                    <div class="template-preview-img">
+                        Purchase Order Template Preview
+                    </div>
+                    <div class="template-preview-title">Purchase Order Template</div>
+                    <div class="template-preview-desc">Formal purchase order with vendor information and approval section</div>
+                </div>
+                
+                <div class="template-preview-card" data-template="statement">
+                    <div class="template-preview-img">
+                        Statement Template Preview
+                    </div>
+                    <div class="template-preview-title">Customer Statement</div>
+                    <div class="template-preview-desc">Account statement with transaction history and aging table</div>
+                </div>
+                
+                <div class="template-preview-card" data-template="check">
+                    <div class="template-preview-img">
+                        Check Template Preview
+                    </div>
+                    <div class="template-preview-title">Check Template</div>
+                    <div class="template-preview-desc">Check payment with payment advice and record sections</div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="tool-btn" id="cancelTemplateBtn">Cancel</button>
+                <button class="tool-btn primary" id="createBlankBtn">Create Blank Template</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Export Modal -->
+    <div class="modal" id="exportModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <div class="modal-title">Export Template</div>
+                <button class="modal-close" id="closeExportModal">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label class="form-label">Template Name</label>
+                    <input type="text" class="form-control" id="exportName" placeholder="Enter template name">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Format</label>
+                    <select class="form-control" id="exportFormat">
+                        <option value="xml">NetSuite Advanced PDF Template (.xml)</option>
+                        <option value="html">HTML (.html)</option>
+                        <option value="pdf">PDF Preview (.pdf)</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Include</label>
+                    <div>
+                        <input type="checkbox" id="includeStyles" checked>
+                        <label for="includeStyles" style="display: inline-block; margin-left: 5px; font-size: 0.9rem;">Include styles</label>
+                    </div>
+                    <div>
+                        <input type="checkbox" id="includeSampleData" checked>
+                        <label for="includeSampleData" style="display: inline-block; margin-left: 5px; font-size: 0.9rem;">Include sample data</label>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="tool-btn" id="cancelExportBtn">Cancel</button>
+                <button class="tool-btn primary" id="downloadBtn">Download</button>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Import Template Modal -->
+    <div class="modal" id="importModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <div class="modal-title">Import Template</div>
+                <button class="modal-close" id="closeImportModal">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label class="form-label">Template Source</label>
+                    <select class="form-control" id="importSource">
+                        <option value="file">From File</option>
+                        <option value="code">Paste Template Code</option>
+                    </select>
+                </div>
+                
+                <div id="importFileSection">
+                    <div class="form-group">
+                        <label class="form-label">Upload Template File</label>
+                        <input type="file" id="importFile" accept=".xml,.html,.txt">
+                    </div>
+                </div>
+                
+                <div id="importCodeSection" style="display: none;">
+                    <div class="form-group">
+                        <label class="form-label">Paste Template Code</label>
+                        <textarea class="form-control" id="importCode" rows="10" placeholder="Paste NetSuite Advanced PDF template XML code here"></textarea>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="tool-btn" id="cancelImportBtn">Cancel</button>
+                <button class="tool-btn primary" id="importBtn">Import</button>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Field Explorer Modal -->
+    <div class="modal" id="fieldExplorerModal">
+        <div class="modal-content" style="width: 700px; max-width: 90%;">
+            <div class="modal-header">
+                <div class="modal-title">NetSuite Field Explorer</div>
+                <button class="modal-close" id="closeFieldExplorerModal">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label class="form-label">Field Category</label>
+                    <select class="form-control" id="fieldCategory">
+                        <option value="transaction">Transaction Fields</option>
+                        <option value="company">Company Information</option>
+                        <option value="customer">Customer/Entity Fields</option>
+                        <option value="items">Line Items</option>
+                        <option value="address">Address Fields</option>
+                        <option value="custom">Custom Fields</option>
+                    </select>
+                </div>
+                
+                <div class="form-group">
+                    <label class="form-label">Search</label>
+                    <input type="text" class="form-control" id="fieldSearch" placeholder="Search fields...">
+                </div>
+                
+                <div class="field-explorer-results">
+                    <table class="field-table" width="100%" cellspacing="0">
+                        <thead>
+                            <tr>
+                                <th width="40%">Field Name</th>
+                                <th width="40%">FreeMarker Variable</th>
+                                <th width="20%">Action</th>
+                            </tr>
+                        </thead>
+                        <tbody id="fieldList">
+                            <!-- Fields will be populated here -->
+                        </tbody>
+                    </table>
+                </div>
+                
+                <div class="field-explorer-info">
+                    <div class="property-group-title" style="margin-top: 10px;">Usage Examples</div>
+                    <div class="field-example-list">
+                        <div class="field-example">
+                            <code>${record.tranid}</code> - Simple field output
+                        </div>
+                        <div class="field-example">
+                            <code>${record.total?string(",##0.00")}</code> - Formatted number
+                        </div>
+                        <div class="field-example">
+                            <code><#if record.total > 1000>High Value</#if></code> - Conditional display
+                        </div>
+                        <div class="field-example">
+                            <code><#list record.item as item>${item.description}</#list></code> - Iteration
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="tool-btn" id="closeFieldBtn">Close</button>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Validation Modal -->
+    <div class="modal" id="validateModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <div class="modal-title">Template Validation</div>
+                <button class="modal-close" id="closeValidateModal">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div id="validationResults">
+                    <div class="validation-loading">
+                        <div class="spinner" style="width: 30px; height: 30px;"></div>
+                        <p>Validating template...</p>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="tool-btn" id="closeValidateBtn">Close</button>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Save Version Modal -->
+    <div class="modal" id="saveVersionModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <div class="modal-title">Save Version</div>
+                <button class="modal-close" id="closeSaveVersionModal">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label class="form-label">Version Name</label>
+                    <input type="text" class="form-control" id="versionName" placeholder="Enter version name">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Notes (optional)</label>
+                    <textarea class="form-control" id="versionNotes" rows="3" placeholder="Enter notes about this version"></textarea>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="tool-btn" id="cancelSaveVersionBtn">Cancel</button>
+                <button class="tool-btn primary" id="saveVersionBtn">Save Version</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="tooltip" id="tooltip"></div>
+    <div id="notification" class="notification">Template saved successfully</div>
+    
+    <div class="loading-overlay" id="loadingOverlay">
+        <div class="spinner"></div>
+    </div>
+
+    <script>
+        // Initialize variables
+        let currentZoom = 100;
+        let selectedElement = null;
+        let elementCounter = 1;
+        let historyStack = [];
+        let historyPosition = -1;
+        let gridVisible = true;
+        let templateType = '';
+
+        // Sample data for preview
+        const sampleData = {
+            companyInformation: {
+                companyName: "Acme Corporation",
+                legalName: "Acme Corporation LLC",
+                address1: "123 Business Avenue",
+                address2: "Suite 500",
+                city: "San Francisco",
+                state: "CA",
+                zip: "94107",
+                country: "United States",
+                phone: "(555) 123-4567",
+                email: "info@acmecorp.example",
+                logo: "/api/placeholder/200/100",
+                federalIdNumber: "12-3456789",
+                taxIdNumber: "987654321"
+            },
+            record: {
+                tranid: "INV10042",
+                trandate: "04/22/2025",
+                duedate: "05/22/2025",
+                terms: "Net 30",
+                entity: {
+                    entityid: "John Smith",
+                    companyname: "Smith Enterprises",
+                    isperson: "T",
+                    firstname: "John",
+                    lastname: "Smith",
+                    email: "john@smithenterprises.example",
+                    phone: "(555) 987-6543",
+                    billaddress1: "456 Customer Street",
+                    billaddress2: "Floor 3",
+                    billcity: "Austin",
+                    billstate: "TX",
+                    billzip: "78701",
+                    billcountry: "United States"
+                },
+                currency: {
+                    symbol: "$",
+                    name: "USD"
+                },
+                subtotal: 2750.00,
+                taxtotal: 226.88,
+                tax2total: 0.00,
+                shippingcost: 45.00,
+                total: 3021.88,
+                amountpaid: 0.00,
+                amountremaining: 3021.88,
+                memo: "Thank you for your business",
+                message: "All payments due within terms. Please reference invoice number on payment.",
+                salesrep: {
+                    entityid: "Sarah Johnson",
+                    email: "sarah.j@acmecorp.example",
+                    phone: "(555) 123-4567 x102"
+                },
+                department: "Sales",
+                location: "Main Warehouse",
+                otherrefnum: "PO78542",
+                item: [
+                    {
+                        item: "Product A",
+                        description: "High-quality widget with advanced features",
+                        quantity: 5,
+                        units: "ea",
+                        rate: 250.00,
+                        amount: 1250.00,
+                        taxrate1: 8.25,
+                        tax1amt: 103.13
+                    },
+                    {
+                        item: "Product B",
+                        description: "Premium service package - enterprise level",
+                        quantity: 1,
+                        units: "ea",
+                        rate: 1500.00,
+                        amount: 1500.00,
+                        taxrate1: 8.25,
+                        tax1amt: 123.75
+                    }
+                ],
+                status: "Open",
+                statusRef: "open"
+            }
+        };
+
+        // DOM Elements
+        const canvas = document.getElementById('canvas');
+        const canvasArea = document.getElementById('canvasArea');
+        const propertiesPanelContent = document.getElementById('propertiesPanelContent');
+        const zoomLevelDisplay = document.getElementById('zoomLevel');
+        const designTab = document.getElementById('designTab');
+        const codeTab = document.getElementById('codeTab');
+        const previewTab = document.getElementById('previewTab');
+        const toolbarTabs = document.querySelectorAll('.toolbar-tab');
+        const componentItems = document.querySelectorAll('.component-item');
+        const zoomInBtn = document.getElementById('zoomInBtn');
+        const zoomOutBtn = document.getElementById('zoomOutBtn');
+        const toggleGridBtn = document.getElementById('toggleGridBtn');
+        const grid = document.getElementById('grid');
+        const undoBtn = document.getElementById('undoBtn');
+        const redoBtn = document.getElementById('redoBtn');
+        const tooltip = document.getElementById('tooltip');
+        const notification = document.getElementById('notification');
+        const templateBtn = document.getElementById('templateBtn');
+        const templateDropdown = document.getElementById('templateDropdown');
+        const dropdownItems = document.querySelectorAll('.dropdown-item');
+        const blankTemplateBtn = document.getElementById('blankTemplateBtn');
+        const emptyStateTemplateBtn = document.getElementById('emptyStateTemplateBtn');
+        const exportBtn = document.getElementById('exportBtn');
+        const saveBtn = document.getElementById('saveBtn');
+        const closePropertiesBtn = document.getElementById('closePropertiesBtn');
+        const templateModal = document.getElementById('templateModal');
+        const closeTemplateModal = document.getElementById('closeTemplateModal');
+        const cancelTemplateBtn = document.getElementById('cancelTemplateBtn');
+        const createBlankBtn = document.getElementById('createBlankBtn');
+        const templateCards = document.querySelectorAll('.template-preview-card');
+        const exportModal = document.getElementById('exportModal');
+        const closeExportModal = document.getElementById('closeExportModal');
+        const cancelExportBtn = document.getElementById('cancelExportBtn');
+        const downloadBtn = document.getElementById('downloadBtn');
+        const loadingOverlay = document.getElementById('loadingOverlay');
+
+        // Initialize code editor
+        const codeEditor = ace.edit("codeEditor");
+        codeEditor.setTheme("ace/theme/monokai");
+        codeEditor.session.setMode("ace/mode/xml");
+        codeEditor.setValue(`<?xml version="1.0"?><!DOCTYPE pdf PUBLIC "-//big.faceless.org//report" "report-1.1.dtd">
+<pdf>
+<head>
+    <meta name="title" value="Template"/>
+    <style type="text/css">
+        * {
+            font-family: sans-serif;
+        }
+        body {
+            font-size: 10pt;
+        }
+        table {
+            font-size: 9pt;
+        }
+    </style>
+</head>
+<body padding="0.25in 0.5in 0.5in 0.5in">
+    <!-- Drag and drop elements to build your template -->
+</body>
+</pdf>`);
+
+        // Template definitions
+        const templates = {
+            // We'll use these to populate the content based on template selection
+            invoice: {
+                title: "Invoice",
+                elements: [
+                    {
+                        type: "header",
+                        content: "Company Header with Logo",
+                        x: 20,
+                        y: 20,
+                        width: 700,
+                        height: 100,
+                        properties: {
+                            backgroundColor: "#ffffff",
+                            border: "none",
+                            padding: "10pt",
+                            content: '<table class="header" pdfTable="true" cellpadding="0" width="100%"><tr><td width="50%"><img src="${companyInformation.logo}" width="150" /></td><td width="50%" align="right"><span style="font-size: 20pt; font-weight: bold; color: #333333;">INVOICE</span><br /><span style="font-weight: bold;">#${record.tranid}</span><br />Date: ${record.trandate}<br />Due Date: ${record.duedate}</td></tr></table>'
+                        }
+                    },
+                    {
+                        type: "section",
+                        content: "Address Section",
+                        x: 20,
+                        y: 130,
+                        width: 700,
+                        height: 120,
+                        properties: {
+                            backgroundColor: "#ffffff",
+                            border: "none",
+                            padding: "10pt",
+                            content: '<table pdfTable="true" cellpadding="0" width="100%"><tr><td width="50%" padding-right="15pt"><span style="font-weight: bold;">${companyInformation.companyName}</span><br />${companyInformation.address1}<br /><#if companyInformation.address2?has_content>${companyInformation.address2}<br /></#if>${companyInformation.city}, ${companyInformation.state} ${companyInformation.zip}<br />${companyInformation.country}<br />Phone: ${companyInformation.phone}</td><td width="50%" padding-left="15pt"><span style="font-weight: bold;">Bill To:</span><br /><#if record.entity.isperson == "T">${record.entity.firstname} ${record.entity.lastname}<br /><#else>${record.entity.companyname}<br /></#if>${record.entity.billaddress1}<br /><#if record.entity.billaddress2?has_content>${record.entity.billaddress2}<br /></#if>${record.entity.billcity}, ${record.entity.billstate} ${record.entity.billzip}<br />${record.entity.billcountry}</td></tr></table>'
+                        }
+                    },
+                    {
+                        type: "line-items",
+                        content: "Line Items Table",
+                        x: 20,
+                        y: 260,
+                        width: 700,
+                        height: 200,
+                        properties: {
+                            backgroundColor: "#ffffff",
+                            border: "1px solid #cccccc",
+                            padding: "0",
+                            content: '<table pdfTable="true" autoSize="1" cellpadding="4" width="100%"><thead><tr><th align="left" background-color="#f0f3f7">Item</th><th align="left" background-color="#f0f3f7">Description</th><th align="center" background-color="#f0f3f7">Qty</th><th align="right" background-color="#f0f3f7">Rate</th><th align="right" background-color="#f0f3f7">Amount</th></tr></thead><tbody><#list record.item as item><tr pdfBackgroundColor="${item_index % 2 == 0 ? "#ffffff" : "#f9f9f9"}"><td align="left">${item.item}</td><td align="left">${item.description}</td><td align="center">${item.quantity} ${item.units}</td><td align="right">${record.currency.symbol}${item.rate?string(",##0.00")}</td><td align="right">${record.currency.symbol}${item.amount?string(",##0.00")}</td></tr></#list></tbody></table>'
+                        }
+                    },
+                    {
+                        type: "totals",
+                        content: "Totals Section",
+                        x: 20,
+                        y: 470,
+                        width: 700,
+                        height: 150,
+                        properties: {
+                            backgroundColor: "#ffffff",
+                            border: "none",
+                            padding: "10pt",
+                            content: '<table pdfTable="true" cellpadding="4" width="100%"><tr><td width="60%" rowspan="4"><#if record.memo?has_content><p><span style="font-weight: bold;">Notes:</span></p><p>${record.memo}</p></#if></td><td width="25%" align="right" padding-right="10pt" background-color="#f0f3f7"><span style="font-weight: bold;">Subtotal</span></td><td width="15%" align="right">${record.currency.symbol}${record.subtotal?string(",##0.00")}</td></tr><tr><td align="right" padding-right="10pt" background-color="#f0f3f7"><span style="font-weight: bold;">Tax</span></td><td align="right">${record.currency.symbol}${record.taxtotal?string(",##0.00")}</td></tr><tr><td align="right" padding-right="10pt" background-color="#f0f3f7"><span style="font-weight: bold;">Total</span></td><td align="right"><span style="font-weight: bold;">${record.currency.symbol}${record.total?string(",##0.00")}</span></td></tr></table>'
+                        }
+                    },
+                    {
+                        type: "footer",
+                        content: "Page Footer",
+                        x: 20,
+                        y: 630,
+                        width: 700,
+                        height: 60,
+                        properties: {
+                            backgroundColor: "#ffffff",
+                            border: "none",
+                            borderTop: "1px solid #cccccc",
+                            padding: "10pt",
+                            content: '<div style="text-align: center; font-size: 8pt; color: #666666;"><p>${companyInformation.companyName} | Tax ID: ${companyInformation.taxIdNumber} | ${companyInformation.phone}</p><p>Thank you for your business!</p></div><pagenumber-at alignment="right" showTotal="true" page-position="footer-right" text-top="Page " text-between=" of " />'
+                        }
+                    }
+                ]
+            },
+            salesorder: {
+                title: "Sales Order",
+                elements: [] // Similar structure as invoice
+            },
+            purchaseorder: {
+                title: "Purchase Order",
+                elements: [] // Similar structure as invoice
+            },
+            statement: {
+                title: "Statement",
+                elements: [] // Similar structure as invoice
+            },
+            check: {
+                title: "Check",
+                elements: [] // Similar structure as invoice
+            }
+        };
+
+        // Default element properties by type
+        const defaultProperties = {
+            header: {
+                backgroundColor: "#ffffff",
+                border: "none",
+                padding: "10pt",
+                content: '<table pdfTable="true" width="100%"><tr><td width="50%">${companyInformation.companyName}</td><td width="50%" align="right">DOCUMENT HEADER</td></tr></table>'
+            },
+            footer: {
+                backgroundColor: "#ffffff",
+                border: "none",
+                borderTop: "1px solid #cccccc",
+                padding: "10pt",
+                content: '<div style="text-align: center; font-size: 8pt; color: #666666;">${companyInformation.companyName} | ${companyInformation.phone}</div><pagenumber-at alignment="right" showTotal="true" page-position="footer-right" text-top="Page " text-between=" of " />'
+            },
+            section: {
+                backgroundColor: "#ffffff",
+                border: "none",
+                padding: "10pt",
+                content: '<div>Content Section</div>'
+            },
+            text: {
+                backgroundColor: "transparent",
+                border: "none",
+                padding: "5pt",
+                content: '<div>Text content goes here</div>'
+            },
+            image: {
+                backgroundColor: "transparent",
+                border: "none",
+                padding: "0",
+                content: '<img src="${companyInformation.logo}" width="150" fit="contain" />'
+            },
+            table: {
+                backgroundColor: "#ffffff",
+                border: "1px solid #cccccc",
+                padding: "0",
+                content: '<table pdfTable="true" autoSize="1" cellpadding="4" width="100%"><tr><th background-color="#f0f0f0">Column 1</th><th background-color="#f0f0f0">Column 2</th></tr><tr><td>Cell 1</td><td>Cell 2</td></tr></table>'
+            },
+            line: {
+                backgroundColor: "transparent",
+                border: "none",
+                padding: "10pt 0",
+                content: '<hr style="border: none; border-top: 1px solid #cccccc; margin: 0;" />'
+            },
+            "company-info": {
+                backgroundColor: "#ffffff",
+                border: "none",
+                padding: "5pt",
+                content: '<div><span style="font-weight: bold;">${companyInformation.companyName}</span><br />${companyInformation.address1}<br /><#if companyInformation.address2?has_content>${companyInformation.address2}<br /></#if>${companyInformation.city}, ${companyInformation.state} ${companyInformation.zip}<br />${companyInformation.country}<br />Phone: ${companyInformation.phone}</div>'
+            },
+            "customer-info": {
+                backgroundColor: "#ffffff",
+                border: "none",
+                padding: "5pt",
+                content: '<div><span style="font-weight: bold;">Customer:</span><br /><#if record.entity.isperson == "T">${record.entity.firstname} ${record.entity.lastname}<br /><#else>${record.entity.companyname}<br /></#if>${record.entity.billaddress1}<br /><#if record.entity.billaddress2?has_content>${record.entity.billaddress2}<br /></#if>${record.entity.billcity}, ${record.entity.billstate} ${record.entity.billzip}<br />${record.entity.billcountry}</div>'
+            },
+            "transaction-details": {
+                backgroundColor: "#ffffff",
+                border: "1px solid #f0f0f0",
+                padding: "5pt",
+                content: '<table pdfTable="true" cellpadding="2" width="100%"><tr><td width="30%" background-color="#f0f0f0"><span style="font-weight: bold;">Document #:</span></td><td width="70%">${record.tranid}</td></tr><tr><td background-color="#f0f0f0"><span style="font-weight: bold;">Date:</span></td><td>${record.trandate}</td></tr><tr><td background-color="#f0f0f0"><span style="font-weight: bold;">Terms:</span></td><td>${record.terms}</td></tr></table>'
+            },
+            "line-items": {
+                backgroundColor: "#ffffff",
+                border: "1px solid #cccccc",
+                padding: "0",
+                content: '<table pdfTable="true" autoSize="1" cellpadding="4" width="100%"><thead><tr><th align="left" background-color="#f0f0f0">Item</th><th align="left" background-color="#f0f0f0">Description</th><th align="center" background-color="#f0f0f0">Qty</th><th align="right" background-color="#f0f0f0">Rate</th><th align="right" background-color="#f0f0f0">Amount</th></tr></thead><tbody><#list record.item as item><tr><td align="left">${item.item}</td><td align="left">${item.description}</td><td align="center">${item.quantity} ${item.units}</td><td align="right">${record.currency.symbol}${item.rate?string(",##0.00")}</td><td align="right">${record.currency.symbol}${item.amount?string(",##0.00")}</td></tr></#list></tbody></table>'
+            },
+            totals: {
+                backgroundColor: "#ffffff",
+                border: "none",
+                padding: "5pt",
+                content: '<table pdfTable="true" cellpadding="2" width="100%"><tr><td width="70%"></td><td width="15%" align="right" background-color="#f0f0f0"><span style="font-weight: bold;">Subtotal:</span></td><td width="15%" align="right">${record.currency.symbol}${record.subtotal?string(",##0.00")}</td></tr><tr><td></td><td align="right" background-color="#f0f0f0"><span style="font-weight: bold;">Tax:</span></td><td align="right">${record.currency.symbol}${record.taxtotal?string(",##0.00")}</td></tr><tr><td></td><td align="right" background-color="#f0f0f0"><span style="font-weight: bold;">Total:</span></td><td align="right"><span style="font-weight: bold;">${record.currency.symbol}${record.total?string(",##0.00")}</span></td></tr></table>'
+            },
+            signature: {
+                backgroundColor: "#ffffff",
+                border: "none",
+                padding: "10pt",
+                content: '<div style="margin-top: 20pt;"><div style="border-bottom: 1px solid #000000; width: 60%; margin-bottom: 5pt;">&nbsp;</div><div style="font-size: 8pt;">Authorized Signature</div></div>'
+            },
+            conditional: {
+                backgroundColor: "#f8f8f8",
+                border: "1px dashed #cccccc",
+                padding: "5pt",
+                content: '<#if record.total > 1000>\n    <div>This is a high-value transaction.</div>\n<#else>\n    <div>Standard transaction.</div>\n</#if>'
+            },
+            loop: {
+                backgroundColor: "#f8f8f8",
+                border: "1px dashed #cccccc",
+                padding: "5pt",
+                content: '<#list record.item as item>\n    <div>${item.item} - ${item.amount}</div>\n</#list>'
+            },
+            "custom-freemarker": {
+                backgroundColor: "#f8f8f8",
+                border: "1px dashed #cccccc",
+                padding: "5pt",
+                content: '<#assign total = 0>\n<#list record.item as item>\n    <#assign total = total + item.amount>\n</#list>\n<div>Calculated total: ${total}</div>'
+            },
+            "page-number": {
+                backgroundColor: "transparent",
+                border: "none",
+                padding: "5pt",
+                content: '<pagenumber-at alignment="right" showTotal="true" page-position="footer-right" text-top="Page " text-between=" of " />'
+            }
+        };
+
+        // Initialize the UI
+        function init() {
+            // Show template modal on startup
+            showTemplateModal();
+            
+            // Set up drag and drop for component items
+            setupDragAndDrop();
+            
+            // Set up tab switching
+            setupTabs();
+            
+            // Set up zoom controls
+            setupZoom();
+            
+            // Set up grid toggle
+            setupGridToggle();
+            
+            // Set up toolbar actions
+            setupToolbarActions();
+            
+            // Set up dropdown menus
+            setupDropdowns();
+            
+            // Set up modals
+            setupModals();
+            
+            // Set up tooltips
+            setupTooltips();
+            
+            // Set up code editor sync
+            setupCodeEditorSync();
+        }
+
+        // Set up drag and drop for components
+        function setupDragAndDrop() {
+            // Make component items draggable
+            componentItems.forEach(item => {
+                item.addEventListener('dragstart', (e) => {
+                    e.dataTransfer.setData('text/plain', item.getAttribute('data-type'));
+                    e.dataTransfer.effectAllowed = 'copy';
+                });
+            });
+            
+            // Make canvas a drop target
+            canvasArea.addEventListener('dragover', (e) => {
+                e.preventDefault();
+                e.dataTransfer.dropEffect = 'copy';
+            });
+            
+            canvasArea.addEventListener('drop', (e) => {
+                e.preventDefault();
+                
+                const type = e.dataTransfer.getData('text/plain');
+                if (!type) return;
+                
+                // Calculate position relative to canvas
+                const rect = canvasArea.getBoundingClientRect();
+                const x = e.clientX - rect.left;
+                const y = e.clientY - rect.top;
+                
+                // Create a new element
+                createElementOnCanvas(type, x, y);
+            });
+            
+            // Setup interact.js for resizing and moving elements
+            setupInteract();
+        }
+
+        // Create a new element on the canvas
+        function createElementOnCanvas(type, x, y) {
+            // Remove empty state if present
+            const emptyState = canvasArea.querySelector('.empty-state');
+            if (emptyState) {
+                canvasArea.removeChild(emptyState);
+            }
+            
+            // Create element
+            const element = document.createElement('div');
+            element.className = 'template-element';
+            element.setAttribute('data-type', type);
+            element.setAttribute('data-id', `element-${elementCounter++}`);
+            
+            // Set position
+            element.style.left = `${x}px`;
+            element.style.top = `${y}px`;
+            
+            // Set size (default or based on type)
+            element.style.width = '200px';
+            element.style.height = '100px';
+            
+            // Set content based on type
+            const properties = {...defaultProperties[type]};
+            element.innerHTML = properties.content;
+            
+            // Style based on properties
+            if (properties.backgroundColor) element.style.backgroundColor = properties.backgroundColor;
+            if (properties.border) element.style.border = properties.border;
+            if (properties.borderTop) element.style.borderTop = properties.borderTop;
+            if (properties.padding) element.style.padding = properties.padding;
+            
+            // Add element label
+            const label = document.createElement('div');
+            label.className = 'element-label';
+            label.textContent = getElementLabel(type);
+            element.appendChild(label);
+            
+            // Add element toolbar
+            const toolbar = document.createElement('div');
+            toolbar.className = 'element-toolbar';
+            toolbar.innerHTML = `
+                <div class="element-btn duplicate" title="Duplicate">
+                    <span class="icon">📋</span>
+                </div>
+                <div class="element-btn delete" title="Delete">
+                    <span class="icon">🗑️</span>
+                </div>
+            `;
+            element.appendChild(toolbar);
+            
+            // Add resize handles
+            const handles = ['nw', 'n', 'ne', 'e', 'se', 's', 'sw', 'w'];
+            handles.forEach(handle => {
+                const resizeHandle = document.createElement('div');
+                resizeHandle.className = `resize-handle ${handle}`;
+                element.appendChild(resizeHandle);
+            });
+            
+            // Add to canvas
+            canvasArea.appendChild(element);
+            
+            // Store element data for undo/redo
+            const elementData = {
+                id: element.getAttribute('data-id'),
+                type: type,
+                x: x,
+                y: y,
+                width: 200,
+                height: 100,
+                properties: properties
+            };
+            
+            // Add to history
+            addToHistory('create', elementData);
+            
+            // Setup element events
+            setupElementEvents(element);
+            
+            // Select the new element
+            selectElement(element);
+            
+            // Update code
+            updateCode();
+        }
+
+        // Setup interact.js for moving and resizing elements
+        function setupInteract() {
+            // Make elements draggable
+            interact('.template-element')
+                .draggable({
+                    inertia: true,
+                    modifiers: [
+                        interact.modifiers.restrictRect({
+                            restriction: 'parent',
+                            endOnly: true
+                        })
+                    ],
+                    autoScroll: true,
+                    listeners: {
+                        start(event) {
+                            selectElement(event.target);
+                        },
+                        move(event) {
+                            const target = event.target;
+                            
+                            // Get current position
+                            const x = parseFloat(target.getAttribute('data-x')) || 0;
+                            const y = parseFloat(target.getAttribute('data-y')) || 0;
+                            
+                            // Update position
+                            const newX = x + event.dx;
+                            const newY = y + event.dy;
+                            
+                            // Apply new position
+                            target.style.transform = `translate(${newX}px, ${newY}px)`;
+                            target.setAttribute('data-x', newX);
+                            target.setAttribute('data-y', newY);
+                        },
+                        end(event) {
+                            // Store final position for undo/redo
+                            const target = event.target;
+                            const id = target.getAttribute('data-id');
+                            const x = parseFloat(target.getAttribute('data-x')) || 0;
+                            const y = parseFloat(target.getAttribute('data-y')) || 0;
+                            
+                            // Get original position from style
+                            const originalX = parseFloat(target.style.left);
+                            const originalY = parseFloat(target.style.top);
+                            
+                            // Calculate final position
+                            const finalX = originalX + x;
+                            const finalY = originalY + y;
+                            
+                            // Update element style
+                            target.style.left = `${finalX}px`;
+                            target.style.top = `${finalY}px`;
+                            target.style.transform = 'none';
+                            target.removeAttribute('data-x');
+                            target.removeAttribute('data-y');
+                            
+                            // Add to history
+                            addToHistory('move', {
+                                id: id,
+                                x: finalX,
+                                y: finalY,
+                                previousX: originalX,
+                                previousY: originalY
+                            });
+                            
+                            // Update code
+                            updateCode();
+                        }
+                    }
+                })
+                .resizable({
+                    edges: { 
+                        top: '.n, .ne, .nw', 
+                        left: '.w, .sw, .nw', 
+                        bottom: '.s, .se, .sw', 
+                        right: '.e, .ne, .se' 
+                    },
+                    inertia: true,
+                    modifiers: [
+                        interact.modifiers.restrictSize({
+                            min: { width: 50, height: 30 }
+                        })
+                    ],
+                    listeners: {
+                        start(event) {
+                            selectElement(event.target);
+                        },
+                        move(event) {
+                            const target = event.target;
+                            
+                            // Get current dimensions
+                            let x = parseFloat(target.getAttribute('data-x')) || 0;
+                            let y = parseFloat(target.getAttribute('data-y')) || 0;
+                            
+                            // Update dimensions
+                            const width = event.rect.width;
+                            const height = event.rect.height;
+                            
+                            // Update position if resizing from top or left
+                            x += event.deltaRect.left;
+                            y += event.deltaRect.top;
+                            
+                            // Apply new dimensions
+                            target.style.width = `${width}px`;
+                            target.style.height = `${height}px`;
+                            
+                            // Apply new position
+                            target.style.transform = `translate(${x}px, ${y}px)`;
+                            target.setAttribute('data-x', x);
+                            target.setAttribute('data-y', y);
+                        },
+                        end(event) {
+                            // Store final dimensions and position for undo/redo
+                            const target = event.target;
+                            const id = target.getAttribute('data-id');
+                            const x = parseFloat(target.getAttribute('data-x')) || 0;
+                            const y = parseFloat(target.getAttribute('data-y')) || 0;
+                            
+                            // Get original dimensions and position from style
+                            const originalWidth = parseFloat(target.style.width);
+                            const originalHeight = parseFloat(target.style.height);
+                            const originalX = parseFloat(target.style.left);
+                            const originalY = parseFloat(target.style.top);
+                            
+                            // Calculate final position and dimensions
+                            const finalX = originalX + x;
+                            const finalY = originalY + y;
+                            const finalWidth = parseFloat(target.style.width);
+                            const finalHeight = parseFloat(target.style.height);
+                            
+                            // Update element style
+                            target.style.left = `${finalX}px`;
+                            target.style.top = `${finalY}px`;
+                            target.style.transform = 'none';
+                            target.removeAttribute('data-x');
+                            target.removeAttribute('data-y');
+                            
+                            // Add to history
+                            addToHistory('resize', {
+                                id: id,
+                                x: finalX,
+                                y: finalY,
+                                width: finalWidth,
+                                height: finalHeight,
+                                previousX: originalX,
+                                previousY: originalY,
+                                previousWidth: originalWidth,
+                                previousHeight: originalHeight
+                            });
+                            
+                            // Update code
+                            updateCode();
+                        }
+                    }
+                });
+        }
+
+        // Setup element events
+        function setupElementEvents(element) {
+            // Select element on click
+            element.addEventListener('click', (e) => {
+                e.stopPropagation();
+                selectElement(element);
+            });
+            
+            // Setup element toolbar buttons
+            const duplicateBtn = element.querySelector('.element-btn.duplicate');
+            if (duplicateBtn) {
+                duplicateBtn.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    duplicateElement(element);
+                });
+            }
+            
+            const deleteBtn = element.querySelector('.element-btn.delete');
+            if (deleteBtn) {
+                deleteBtn.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    deleteElement(element);
+                });
+            }
+        }
+
+        // Select an element
+        function selectElement(element) {
+            // Deselect previously selected element
+            if (selectedElement) {
+                selectedElement.classList.remove('selected');
+            }
+            
+            // Select new element
+            element.classList.add('selected');
+            selectedElement = element;
+            
+            // Show properties panel
+            showProperties(element);
+        }
+
+        // Duplicate an element
+        function duplicateElement(element) {
+            const type = element.getAttribute('data-type');
+            const rect = element.getBoundingClientRect();
+            const canvasRect = canvasArea.getBoundingClientRect();
+            
+            // Calculate position (offset from original)
+            const offsetX = 20;
+            const offsetY = 20;
+            const x = parseFloat(element.style.left) + offsetX;
+            const y = parseFloat(element.style.top) + offsetY;
+            
+            // Create duplicate element
+            createElementOnCanvas(type, x, y);
+        }
+
+        // Delete an element
+        function deleteElement(element) {
+            const id = element.getAttribute('data-id');
+            
+            // Store element data for undo
+            const x = parseFloat(element.style.left);
+            const y = parseFloat(element.style.top);
+            const width = parseFloat(element.style.width);
+            const height = parseFloat(element.style.height);
+            const type = element.getAttribute('data-type');
+            
+            // Get element properties
+            const properties = {};
+            properties.backgroundColor = element.style.backgroundColor;
+            properties.border = element.style.border;
+            properties.borderTop = element.style.borderTop;
+            properties.padding = element.style.padding;
+            properties.content = element.innerHTML;
+            
+            // Add to history
+            addToHistory('delete', {
+                id: id,
+                type: type,
+                x: x,
+                y: y,
+                width: width,
+                height: height,
+                properties: properties
+            });
+            
+            // Remove element
+            canvasArea.removeChild(element);
+            
+            // Clear selection if this was the selected element
+            if (selectedElement === element) {
+                selectedElement = null;
+                clearProperties();
+            }
+            
+            // Update code
+            updateCode();
+            
+            // Show empty state if no elements left
+            if (canvasArea.querySelectorAll('.template-element').length === 0) {
+                showEmptyState();
+            }
+        }
+
+        // Show properties panel for an element
+        function showProperties(element) {
+            const type = element.getAttribute('data-type');
+            
+            // Create properties form
+            let html = `
+                <div class="property-group">
+                    <div class="property-group-title">General</div>
+                    <div class="form-group">
+                        <label class="form-label">Element Type</label>
+                        <input type="text" class="form-control" value="${getElementLabel(type)}" readonly>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group form-group-half">
+                            <label class="form-label">Position X</label>
+                            <input type="number" class="form-control" id="positionX" value="${parseFloat(element.style.left)}">
+                        </div>
+                        <div class="form-group form-group-half">
+                            <label class="form-label">Position Y</label>
+                            <input type="number" class="form-control" id="positionY" value="${parseFloat(element.style.top)}">
+                        </div>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group form-group-half">
+                            <label class="form-label">Width</label>
+                            <input type="number" class="form-control" id="elementWidth" value="${parseFloat(element.style.width)}">
+                        </div>
+                        <div class="form-group form-group-half">
+                            <label class="form-label">Height</label>
+                            <input type="number" class="form-control" id="elementHeight" value="${parseFloat(element.style.height)}">
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="property-group">
+                    <div class="property-group-title">Appearance</div>
+                    <div class="form-group">
+                        <label class="form-label">Background Color</label>
+                        <div class="color-input">
+                            <input type="color" id="backgroundColor" value="${rgbToHex(element.style.backgroundColor) || '#ffffff'}">
+                            <input type="text" class="form-control" id="backgroundColorText" value="${rgbToHex(element.style.backgroundColor) || '#ffffff'}">
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Border</label>
+                        <select class="form-control" id="borderStyle">
+                            <option value="none" ${element.style.border === 'none' ? 'selected' : ''}>None</option>
+                            <option value="1px solid #cccccc" ${element.style.border === '1px solid #cccccc' ? 'selected' : ''}>Thin Solid</option>
+                            <option value="1px dashed #cccccc" ${element.style.border === '1px dashed #cccccc' ? 'selected' : ''}>Thin Dashed</option>
+                            <option value="2px solid #cccccc" ${element.style.border === '2px solid #cccccc' ? 'selected' : ''}>Thick Solid</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Padding</label>
+                        <select class="form-control" id="paddingStyle">
+                            <option value="0" ${element.style.padding === '0' ? 'selected' : ''}>None</option>
+                            <option value="5pt" ${element.style.padding === '5pt' ? 'selected' : ''}>Small (5pt)</option>
+                            <option value="10pt" ${element.style.padding === '10pt' ? 'selected' : ''}>Medium (10pt)</option>
+                            <option value="15pt" ${element.style.padding === '15pt' ? 'selected' : ''}>Large (15pt)</option>
+                        </select>
+                    </div>
+                </div>
+                
+                <div class="property-group">
+                    <div class="property-group-title">Content</div>
+                    <div class="form-group">
+                        <label class="form-label">HTML/FreeMarker Content</label>
+                        <textarea class="form-control" id="elementContent" rows="8" style="font-family: monospace; font-size: 12px;">${escapeHtml(getElementContent(element))}</textarea>
+                    </div>
+                </div>
+            `;
+            
+            // Set properties panel content
+            propertiesPanelContent.innerHTML = html;
+            
+            // Setup property change events
+            setupPropertyChangeEvents(element);
+        }
+
+        // Setup property change events
+        function setupPropertyChangeEvents(element) {
+            // Position X
+            const positionX = document.getElementById('positionX');
+            if (positionX) {
+                positionX.addEventListener('change', () => {
+                    const oldX = parseFloat(element.style.left);
+                    const newX = parseFloat(positionX.value);
+                    
+                    element.style.left = `${newX}px`;
+                    
+                    // Add to history
+                    addToHistory('move', {
+                        id: element.getAttribute('data-id'),
+                        x: newX,
+                        y: parseFloat(element.style.top),
+                        previousX: oldX,
+                        previousY: parseFloat(element.style.top)
+                    });
+                    
+                    // Update code
+                    updateCode();
+                });
+            }
+            
+            // Position Y
+            const positionY = document.getElementById('positionY');
+            if (positionY) {
+                positionY.addEventListener('change', () => {
+                    const oldY = parseFloat(element.style.top);
+                    const newY = parseFloat(positionY.value);
+                    
+                    element.style.top = `${newY}px`;
+                    
+                    // Add to history
+                    addToHistory('move', {
+                        id: element.getAttribute('data-id'),
+                        x: parseFloat(element.style.left),
+                        y: newY,
+                        previousX: parseFloat(element.style.left),
+                        previousY: oldY
+                    });
+                    
+                    // Update code
+                    updateCode();
+                });
+            }
+            
+            // Width
+            const elementWidth = document.getElementById('elementWidth');
+            if (elementWidth) {
+                elementWidth.addEventListener('change', () => {
+                    const oldWidth = parseFloat(element.style.width);
+                    const newWidth = parseFloat(elementWidth.value);
+                    
+                    element.style.width = `${newWidth}px`;
+                    
+                    // Add to history
+                    addToHistory('resize', {
+                        id: element.getAttribute('data-id'),
+                        x: parseFloat(element.style.left),
+                        y: parseFloat(element.style.top),
+                        width: newWidth,
+                        height: parseFloat(element.style.height),
+                        previousX: parseFloat(element.style.left),
+                        previousY: parseFloat(element.style.top),
+                        previousWidth: oldWidth,
+                        previousHeight: parseFloat(element.style.height)
+                    });
+                    
+                    // Update code
+                    updateCode();
+                });
+            }
+            
+            // Height
+            const elementHeight = document.getElementById('elementHeight');
+            if (elementHeight) {
+                elementHeight.addEventListener('change', () => {
+                    const oldHeight = parseFloat(element.style.height);
+                    const newHeight = parseFloat(elementHeight.value);
+                    
+                    element.style.height = `${newHeight}px`;
+                    
+                    // Add to history
+                    addToHistory('resize', {
+                        id: element.getAttribute('data-id'),
+                        x: parseFloat(element.style.left),
+                        y: parseFloat(element.style.top),
+                        width: parseFloat(element.style.width),
+                        height: newHeight,
+                        previousX: parseFloat(element.style.left),
+                        previousY: parseFloat(element.style.top),
+                        previousWidth: parseFloat(element.style.width),
+                        previousHeight: oldHeight
+                    });
+                    
+                    // Update code
+                    updateCode();
+                });
+            }
+            
+            // Background Color
+            const backgroundColor = document.getElementById('backgroundColor');
+            const backgroundColorText = document.getElementById('backgroundColorText');
+            if (backgroundColor && backgroundColorText) {
+                backgroundColor.addEventListener('input', () => {
+                    const color = backgroundColor.value;
+                    backgroundColorText.value = color;
+                    element.style.backgroundColor = color;
+                    
+                    // Update code
+                    updateCode();
+                });
+                
+                backgroundColorText.addEventListener('input', () => {
+                    const color = backgroundColorText.value;
+                    backgroundColor.value = color;
+                    element.style.backgroundColor = color;
+                    
+                    // Update code
+                    updateCode();
+                });
+            }
+            
+            // Border Style
+            const borderStyle = document.getElementById('borderStyle');
+            if (borderStyle) {
+                borderStyle.addEventListener('change', () => {
+                    const border = borderStyle.value;
+                    element.style.border = border;
+                    
+                    // Update code
+                    updateCode();
+                });
+            }
+            
+            // Padding Style
+            const paddingStyle = document.getElementById('paddingStyle');
+            if (paddingStyle) {
+                paddingStyle.addEventListener('change', () => {
+                    const padding = paddingStyle.value;
+                    element.style.padding = padding;
+                    
+                    // Update code
+                    updateCode();
+                });
+            }
+            
+            // Element Content
+            const elementContent = document.getElementById('elementContent');
+            if (elementContent) {
+                elementContent.addEventListener('input', () => {
+                    setElementContent(element, elementContent.value);
+                    
+                    // Update code
+                    updateCode();
+                });
+            }
+        }
+
+        // Clear properties panel
+        function clearProperties() {
+            propertiesPanelContent.innerHTML = `
+                <div class="no-element-selected">
+                    <div class="no-element-icon">👈</div>
+                    <p>Select an element on the canvas to edit its properties</p>
+                </div>
+            `;
+        }
+
+        // Get element label from type
+        function getElementLabel(type) {
+            const labels = {
+                header: 'Header Section',
+                footer: 'Footer Section',
+                section: 'Content Section',
+                text: 'Text Block',
+                image: 'Image',
+                table: 'Table',
+                line: 'Divider Line',
+                'company-info': 'Company Info',
+                'customer-info': 'Customer Info',
+                'transaction-details': 'Transaction Details',
+                'line-items': 'Line Items Table',
+                totals: 'Totals Section',
+                signature: 'Signature Field',
+                conditional: 'Conditional Block',
+                loop: 'Loop Block',
+                'custom-freemarker': 'Custom FreeMarker',
+                'page-number': 'Page Numbering'
+            };
+            
+            return labels[type] || type;
+        }
+
+        // Setup tabs
+        function setupTabs() {
+            toolbarTabs.forEach(tab => {
+                tab.addEventListener('click', () => {
+                    // Set active tab
+                    toolbarTabs.forEach(t => t.classList.remove('active'));
+                    tab.classList.add('active');
+                    
+                    // Show tab content
+                    const tabName = tab.getAttribute('data-tab');
+                    switch (tabName) {
+                        case 'design':
+                            designTab.style.display = 'block';
+                            codeTab.style.display = 'none';
+                            previewTab.style.display = 'none';
+                            break;
+                        case 'code':
+                            designTab.style.display = 'none';
+                            codeTab.style.display = 'block';
+                            previewTab.style.display = 'none';
+                            updateCode();
+                            codeEditor.resize();
+                            break;
+                        case 'preview':
+                            designTab.style.display = 'none';
+                            codeTab.style.display = 'none';
+                            previewTab.style.display = 'block';
+                            updatePreview();
+                            break;
+                    }
+                });
+            });
+        }
+
+        // Setup zoom controls
+        function setupZoom() {
+            zoomInBtn.addEventListener('click', () => {
+                if (currentZoom < 200) {
+                    currentZoom += 10;
+                    updateZoom();
+                }
+            });
+            
+            zoomOutBtn.addEventListener('click', () => {
+                if (currentZoom > 50) {
+                    currentZoom -= 10;
+                    updateZoom();
+                }
+            });
+        }
+
+        // Update zoom level
+        function updateZoom() {
+            zoomLevelDisplay.textContent = `${currentZoom}%`;
+            canvas.style.transform = `scale(${currentZoom / 100})`;
+        }
+
+        // Setup grid toggle
+        function setupGridToggle() {
+            toggleGridBtn.addEventListener('click', () => {
+                gridVisible = !gridVisible;
+                grid.style.display = gridVisible ? 'block' : 'none';
+            });
+        }
+
+        // Setup toolbar actions
+        function setupToolbarActions() {
+            // Undo
+            undoBtn.addEventListener('click', undo);
+            
+            // Redo
+            redoBtn.addEventListener('click', redo);
+            
+            // Close properties
+            closePropertiesBtn.addEventListener('click', () => {
+                // Deselect element
+                if (selectedElement) {
+                    selectedElement.classList.remove('selected');
+                    selectedElement = null;
+                }
+                
+                // Clear properties
+                clearProperties();
+            });
+            
+            // Save
+            saveBtn.addEventListener('click', saveTemplate);
+            
+            // Export
+            exportBtn.addEventListener('click', () => {
+                showExportModal();
+            });
+        }
+
+        // Add to history stack
+        function addToHistory(action, data) {
+            // Clear redo history after new action
+            if (historyPosition < historyStack.length - 1) {
+                historyStack = historyStack.slice(0, historyPosition + 1);
+            }
+            
+            // Add action to history
+            historyStack.push({
+                action: action,
+                data: data
+            });
+            
+            // Update position
+            historyPosition = historyStack.length - 1;
+            
+            // Update undo/redo button states
+            updateUndoRedoButtons();
+        }
+
+        // Undo last action
+        function undo() {
+            if (historyPosition >= 0) {
+                const action = historyStack[historyPosition];
+                historyPosition--;
+                
+                // Apply undo based on action type
+                switch (action.action) {
+                    case 'create':
+                        // Remove created element
+                        const createElement = document.querySelector(`[data-id="${action.data.id}"]`);
+                        if (createElement) {
+                            canvasArea.removeChild(createElement);
+                        }
+                        break;
+                    case 'delete':
+                        // Restore deleted element
+                        restoreElement(action.data);
+                        break;
+                    case 'move':
+                        // Move back to previous position
+                        const moveElement = document.querySelector(`[data-id="${action.data.id}"]`);
+                        if (moveElement) {
+                            moveElement.style.left = `${action.data.previousX}px`;
+                            moveElement.style.top = `${action.data.previousY}px`;
+                        }
+                        break;
+                    case 'resize':
+                        // Restore previous size and position
+                        const resizeElement = document.querySelector(`[data-id="${action.data.id}"]`);
+                        if (resizeElement) {
+                            resizeElement.style.left = `${action.data.previousX}px`;
+                            resizeElement.style.top = `${action.data.previousY}px`;
+                            resizeElement.style.width = `${action.data.previousWidth}px`;
+                            resizeElement.style.height = `${action.data.previousHeight}px`;
+                        }
+                        break;
+                }
+                
+                // Update code
+                updateCode();
+                
+                // Update undo/redo button states
+                updateUndoRedoButtons();
+                
+                // Show empty state if no elements left
+                if (canvasArea.querySelectorAll('.template-element').length === 0) {
+                    showEmptyState();
+                }
+            }
+        }
+
+        // Redo last undone action
+        function redo() {
+            if (historyPosition < historyStack.length - 1) {
+                historyPosition++;
+                const action = historyStack[historyPosition];
+                
+                // Apply redo based on action type
+                switch (action.action) {
+                    case 'create':
+                        // Recreate element
+                        restoreElement(action.data);
+                        break;
+                    case 'delete':
+                        // Delete element again
+                        const deleteElement = document.querySelector(`[data-id="${action.data.id}"]`);
+                        if (deleteElement) {
+                            canvasArea.removeChild(deleteElement);
+                        }
+                        break;
+                    case 'move':
+                        // Move to new position
+                        const moveElement = document.querySelector(`[data-id="${action.data.id}"]`);
+                        if (moveElement) {
+                            moveElement.style.left = `${action.data.x}px`;
+                            moveElement.style.top = `${action.data.y}px`;
+                        }
+                        break;
+                    case 'resize':
+                        // Apply new size and position
+                        const resizeElement = document.querySelector(`[data-id="${action.data.id}"]`);
+                        if (resizeElement) {
+                            resizeElement.style.left = `${action.data.x}px`;
+                            resizeElement.style.top = `${action.data.y}px`;
+                            resizeElement.style.width = `${action.data.width}px`;
+                            resizeElement.style.height = `${action.data.height}px`;
+                        }
+                        break;
+                }
+                
+                // Update code
+                updateCode();
+                
+                // Update undo/redo button states
+                updateUndoRedoButtons();
+                
+                // Remove empty state if elements added
+                const emptyState = canvasArea.querySelector('.empty-state');
+                if (emptyState && canvasArea.querySelectorAll('.template-element').length > 0) {
+                    canvasArea.removeChild(emptyState);
+                }
+            }
+        }
+
+        // Update undo/redo button states
+        function updateUndoRedoButtons() {
+            // Update undo button
+            undoBtn.disabled = historyPosition < 0;
+            
+            // Update redo button
+            redoBtn.disabled = historyPosition >= historyStack.length - 1;
+        }
+
+        // Restore element from history data
+        function restoreElement(data) {
+            // Remove empty state if present
+            const emptyState = canvasArea.querySelector('.empty-state');
+            if (emptyState) {
+                canvasArea.removeChild(emptyState);
+            }
+            
+            // Create element
+            const element = document.createElement('div');
+            element.className = 'template-element';
+            element.setAttribute('data-type', data.type);
+            element.setAttribute('data-id', data.id);
+            
+            // Set position and size
+            element.style.left = `${data.x}px`;
+            element.style.top = `${data.y}px`;
+            element.style.width = `${data.width}px`;
+            element.style.height = `${data.height}px`;
+            
+            // Set content
+            if (data.properties && data.properties.content) {
+                element.innerHTML = data.properties.content;
+            }
+            
+            // Style based on properties
+            if (data.properties) {
+                if (data.properties.backgroundColor) element.style.backgroundColor = data.properties.backgroundColor;
+                if (data.properties.border) element.style.border = data.properties.border;
+                if (data.properties.borderTop) element.style.borderTop = data.properties.borderTop;
+                if (data.properties.padding) element.style.padding = data.properties.padding;
+            }
+            
+            // Add element label
+            const label = document.createElement('div');
+            label.className = 'element-label';
+            label.textContent = getElementLabel(data.type);
+            element.appendChild(label);
+            
+            // Add element toolbar
+            const toolbar = document.createElement('div');
+            toolbar.className = 'element-toolbar';
+            toolbar.innerHTML = `
+                <div class="element-btn duplicate" title="Duplicate">
+                    <span class="icon">📋</span>
+                </div>
+                <div class="element-btn delete" title="Delete">
+                    <span class="icon">🗑️</span>
+                </div>
+            `;
+            element.appendChild(toolbar);
+            
+            // Add resize handles
+            const handles = ['nw', 'n', 'ne', 'e', 'se', 's', 'sw', 'w'];
+            handles.forEach(handle => {
+                const resizeHandle = document.createElement('div');
+                resizeHandle.className = `resize-handle ${handle}`;
+                element.appendChild(resizeHandle);
+            });
+            
+            // Add to canvas
+            canvasArea.appendChild(element);
+            
+            // Setup element events
+            setupElementEvents(element);
+        }
+
+        // Setup dropdowns
+        function setupDropdowns() {
+            // Template dropdown
+            templateBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                templateDropdown.classList.toggle('show');
+            });
+            
+            // Close dropdown when clicking outside
+            document.addEventListener('click', () => {
+                templateDropdown.classList.remove('show');
+            });
+            
+            // Template selection
+            dropdownItems.forEach(item => {
+                item.addEventListener('click', () => {
+                    const template = item.getAttribute('data-template');
+                    if (template) {
+                        loadTemplate(template);
+                    }
+                    templateDropdown.classList.remove('show');
+                });
+            });
+            
+            // Blank template
+            blankTemplateBtn.addEventListener('click', () => {
+                clearCanvas();
+                templateDropdown.classList.remove('show');
+            });
+            
+            // Empty state template button
+            emptyStateTemplateBtn.addEventListener('click', () => {
+                showTemplateModal();
+            });
+        }
+
+        // Setup modals
+        function setupModals() {
+            // Template modal
+            closeTemplateModal.addEventListener('click', () => {
+                templateModal.classList.remove('open');
+            });
+            
+            cancelTemplateBtn.addEventListener('click', () => {
+                templateModal.classList.remove('open');
+            });
+            
+            createBlankBtn.addEventListener('click', () => {
+                clearCanvas();
+                templateModal.classList.remove('open');
+            });
+            
+            // Template cards
+            templateCards.forEach(card => {
+                card.addEventListener('click', () => {
+                    const template = card.getAttribute('data-template');
+                    if (template) {
+                        loadTemplate(template);
+                        templateModal.classList.remove('open');
+                    }
+                });
+            });
+            
+            // Export modal
+            closeExportModal.addEventListener('click', () => {
+                exportModal.classList.remove('open');
+            });
+            
+            cancelExportBtn.addEventListener('click', () => {
+                exportModal.classList.remove('open');
+            });
+            
+            downloadBtn.addEventListener('click', () => {
+                exportTemplate();
+                exportModal.classList.remove('open');
+            });
+        }
+
+        // Show template modal
+        function showTemplateModal() {
+            templateModal.classList.add('open');
+        }
+
+        // Show export modal
+        function showExportModal() {
+            const exportName = document.getElementById('exportName');
+            const formatType = document.getElementById('exportFormat');
+            
+            // Set default name based on template type
+            exportName.value = templateType ? `${templateType}_template` : 'netsuite_template';
+            formatType.value = 'xml';
+            
+            exportModal.classList.add('open');
+        }
+
+        // Setup tooltips
+        function setupTooltips() {
+            // Show tooltip on hover for buttons and draggable items
+            const tooltipElements = document.querySelectorAll('[title]');
+            tooltipElements.forEach(element => {
+                element.addEventListener('mouseenter', (e) => {
+                    const title = element.getAttribute('title');
+                    element.removeAttribute('title');
+                    element.dataset.title = title;
+                    
+                    tooltip.textContent = title;
+                    tooltip.style.left = `${e.pageX + 10}px`;
+                    tooltip.style.top = `${e.pageY + 10}px`;
+                    tooltip.classList.add('visible');
+                });
+                
+                element.addEventListener('mousemove', (e) => {
+                    tooltip.style.left = `${e.pageX + 10}px`;
+                    tooltip.style.top = `${e.pageY + 10}px`;
+                });
+                
+                element.addEventListener('mouseleave', () => {
+                    element.setAttribute('title', element.dataset.title);
+                    delete element.dataset.title;
+                    tooltip.classList.remove('visible');
+                });
+            });
+        }
+
+        // Setup code editor sync
+        function setupCodeEditorSync() {
+            // Sync code changes with canvas
+            codeEditor.getSession().on('change', () => {
+                // Only update canvas if in code tab
+                if (document.querySelector('.toolbar-tab[data-tab="code"]').classList.contains('active')) {
+                    // TODO: Parse code and update canvas elements
+                }
+            });
+        }
+
+        // Load template
+        function loadTemplate(template) {
+            // Set template type
+            templateType = template;
+            
+            // Clear canvas
+            clearCanvas();
+            
+            // Show loading overlay
+            loadingOverlay.style.display = 'flex';
+            
+            // Use setTimeout to allow the UI to refresh
+            setTimeout(() => {
+                // Add template elements to canvas
+                if (templates[template] && templates[template].elements) {
+                    templates[template].elements.forEach(elementData => {
+                        const element = document.createElement('div');
+                        element.className = 'template-element';
+                        element.setAttribute('data-type', elementData.type);
+                        element.setAttribute('data-id', `element-${elementCounter++}`);
+                        
+                        // Set position and size
+                        element.style.left = `${elementData.x}px`;
+                        element.style.top = `${elementData.y}px`;
+                        element.style.width = `${elementData.width}px`;
+                        element.style.height = `${elementData.height}px`;
+                        
+                        // Set content
+                        if (elementData.properties.content) {
+                            element.innerHTML = elementData.properties.content;
+                        }
+                        
+                        // Style based on properties
+                        if (elementData.properties.backgroundColor) element.style.backgroundColor = elementData.properties.backgroundColor;
+                        if (elementData.properties.border) element.style.border = elementData.properties.border;
+                        if (elementData.properties.borderTop) element.style.borderTop = elementData.properties.borderTop;
+                        if (elementData.properties.padding) element.style.padding = elementData.properties.padding;
+                        
+                        // Add element label
+                        const label = document.createElement('div');
+                        label.className = 'element-label';
+                        label.textContent = getElementLabel(elementData.type);
+                        element.appendChild(label);
+                        
+                        // Add element toolbar
+                        const toolbar = document.createElement('div');
+                        toolbar.className = 'element-toolbar';
+                        toolbar.innerHTML = `
+                            <div class="element-btn duplicate" title="Duplicate">
+                                <span class="icon">📋</span>
+                            </div>
+                            <div class="element-btn delete" title="Delete">
+                                <span class="icon">🗑️</span>
+                            </div>
+                        `;
+                        element.appendChild(toolbar);
+                        
+                        // Add resize handles
+                        const handles = ['nw', 'n', 'ne', 'e', 'se', 's', 'sw', 'w'];
+                        handles.forEach(handle => {
+                            const resizeHandle = document.createElement('div');
+                            resizeHandle.className = `resize-handle ${handle}`;
+                            element.appendChild(resizeHandle);
+                        });
+                        
+                        // Add to canvas
+                        canvasArea.appendChild(element);
+                        
+                        // Setup element events
+                        setupElementEvents(element);
+                        
+                        // Add to history
+                        addToHistory('create', {
+                            id: element.getAttribute('data-id'),
+                            type: elementData.type,
+                            x: elementData.x,
+                            y: elementData.y,
+                            width: elementData.width,
+                            height: elementData.height,
+                            properties: elementData.properties
+                        });
+                    });
+                }
+                
+                // Update code
+                updateCode();
+                
+                // Hide loading overlay
+                loadingOverlay.style.display = 'none';
+                
+                // Show notification
+                showNotification(`${template.charAt(0).toUpperCase() + template.slice(1)} template loaded`);
+            }, 100);
+        }
+
+        // Clear the canvas
+        function clearCanvas() {
+            // Remove all elements
+            const elements = canvasArea.querySelectorAll('.template-element');
+            elements.forEach(element => {
+                canvasArea.removeChild(element);
+            });
+            
+            // Clear history
+            historyStack = [];
+            historyPosition = -1;
+            
+            // Reset counter
+            elementCounter = 1;
+            
+            // Show empty state
+            showEmptyState();
+            
+            // Clear properties
+            clearProperties();
+            
+            // Clear selection
+            selectedElement = null;
+        }
+
+        // Show empty state
+        function showEmptyState() {
+            // Check if empty state already exists
+            if (canvasArea.querySelector('.empty-state')) return;
+            
+            // Create empty state
+            const emptyState = document.createElement('div');
+            emptyState.className = 'empty-state';
+            emptyState.innerHTML = `
+                <div class="empty-state-icon">📄</div>
+                <div class="empty-state-text">Drag and drop components from the left sidebar to start building your template</div>
+                <button class="tool-btn primary" id="emptyStateTemplateBtn">
+                    <span class="icon">📋</span>
+                    Use Template
+                </button>
+            `;
+            canvasArea.appendChild(emptyState);
+            
+            // Setup empty state template button
+            const emptyStateBtn = emptyState.querySelector('#emptyStateTemplateBtn');
+            if (emptyStateBtn) {
+                emptyStateBtn.addEventListener('click', showTemplateModal);
+            }
+        }
+
+        // Update code
+        function updateCode() {
+            // Get all elements
+            const elements = canvasArea.querySelectorAll('.template-element');
+            
+            // Start with the basic template structure
+            let codeStructure = `<?xml version="1.0"?><!DOCTYPE pdf PUBLIC "-//big.faceless.org//report" "report-1.1.dtd">
+<pdf>
+<head>
+    <meta name="title" value="${templateType.charAt(0).toUpperCase() + templateType.slice(1) || 'Template'}"/>
+    <style type="text/css">
+        * {
+            font-family: sans-serif;
+        }
+        body {
+            font-size: 10pt;
+        }
+        table {
+            font-size: 9pt;
+        }
+        th {
+            font-weight: bold;
+            background-color: #f0f0f0;
+            color: #333333;
+        }
+        td {
+            padding: 4px 6px;
+        }
+        td p {
+            margin: 0;
+        }
+        .header {
+            width: 100%;
+            margin-bottom: 20pt;
+        }
+        .footer {
+            width: 100%;
+            margin-top: 20pt;
+            text-align: center;
+            color: #666666;
+            font-size: 8pt;
+            border-top: 0.5px solid #cccccc;
+            padding-top: 5pt;
+        }
+        .strong {
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body padding="0.25in 0.5in 0.5in 0.5in">
+`;
+            
+            // Sort elements by y position (top to bottom)
+            const sortedElements = Array.from(elements).sort((a, b) => {
+                return parseFloat(a.style.top) - parseFloat(b.style.top);
+            });
+            
+            // Add elements to code
+            sortedElements.forEach(element => {
+                const content = getElementContent(element);
+                codeStructure += `    ${content}\n\n`;
+            });
+            
+            // Close the template
+            codeStructure += `</body>
+</pdf>`;
+            
+            // Set code editor value
+            codeEditor.setValue(codeStructure);
+            codeEditor.clearSelection();
+        }
+
+        // Update preview
+        function updatePreview() {
+            // Get code
+            const code = codeEditor.getValue();
+            
+            // Process template to replace FreeMarker expressions with sample data
+            let processedTemplate = processTemplate(code, sampleData);
+            
+            // Create an iframe document
+            const iframe = document.getElementById('previewFrame');
+            const iframeDoc = iframe.contentDocument || iframe.contentWindow.document;
+            
+            // Set content
+            iframeDoc.open();
+            iframeDoc.write(processedTemplate);
+            iframeDoc.close();
+        }
+
+        // Export template
+        function exportTemplate() {
+            // Get template name and format
+            const exportName = document.getElementById('exportName').value || 'netsuite_template';
+            const formatType = document.getElementById('exportFormat').value;
+            const includeStyles = document.getElementById('includeStyles').checked;
+            const includeSampleData = document.getElementById('includeSampleData').checked;
+            
+            // Get code
+            let code = codeEditor.getValue();
+            
+            // Process based on format type
+            if (formatType === 'html') {
+                // Convert to HTML - this is a simplified conversion
+                code = code.replace('<?xml version="1.0"?><!DOCTYPE pdf PUBLIC "-//big.faceless.org//report" "report-1.1.dtd">', '<!DOCTYPE html>');
+                code = code.replace('<pdf>', '<html>');
+                code = code.replace('</pdf>', '</html>');
+                code = code.replace(/<pagenumber-at[^>]*\/>/g, '<!-- Page numbering removed -->');
+                
+                // Remove BFO attributes
+                code = code.replace(/pdfTable="true"/g, '');
+                code = code.replace(/fit="[^"]*"/g, '');
+                code = code.replace(/dpi="[^"]*"/g, '');
+            }
+            
+            // Create download link
+            const blob = new Blob([code], { type: 'text/plain' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `${exportName}.${formatType}`;
+            a.click();
+            
+            // Clean up
+            URL.revokeObjectURL(url);
+            
+            // Show notification
+            showNotification(`Template exported as ${exportName}.${formatType}`);
+        }
+
+        // Save template
+        function saveTemplate() {
+            // In a real application, this would send the template to a server
+            // Here we'll just save to localStorage
+            
+            // Get all elements data
+            const elements = canvasArea.querySelectorAll('.template-element');
+            const elementsData = Array.from(elements).map(element => {
+                return {
+                    id: element.getAttribute('data-id'),
+                    type: element.getAttribute('data-type'),
+                    x: parseFloat(element.style.left),
+                    y: parseFloat(element.style.top),
+                    width: parseFloat(element.style.width),
+                    height: parseFloat(element.style.height),
+                    properties: {
+                        backgroundColor: element.style.backgroundColor,
+                        border: element.style.border,
+                        borderTop: element.style.borderTop,
+                        padding: element.style.padding,
+                        content: getElementContent(element)
+                    }
+                };
+            });
+            
+            // Create template data
+            const templateData = {
+                type: templateType || 'custom',
+                elements: elementsData,
+                code: codeEditor.getValue(),
+                timestamp: new Date().toISOString()
+            };
+            
+            // Save to localStorage
+            try {
+                localStorage.setItem('netsuiteTemplate', JSON.stringify(templateData));
+                showNotification('Template saved successfully');
+            } catch (error) {
+                showNotification('Error saving template: ' + error.message, true);
+            }
+        }
+
+        // Show notification
+        function showNotification(message, isError = false) {
+            notification.textContent = message;
+            notification.className = 'notification' + (isError ? ' error' : '');
+            notification.classList.add('show');
+            
+            setTimeout(() => {
+                notification.classList.remove('show');
+            }, 3000);
+        }
+
+        // Process template with sample data (simplified)
+        function processTemplate(template, data) {
+            // This is a simplified template processor - in a real app, you'd use an actual FreeMarker processor
+            
+            // First, convert XML to HTML for preview
+            let result = template
+                .replace('<?xml version="1.0"?><!DOCTYPE pdf PUBLIC "-//big.faceless.org//report" "report-1.1.dtd">', '<!DOCTYPE html>')
+                .replace('<pdf>', '<html>')
+                .replace('</pdf>', '</html>')
+                .replace(/<pagenumber-at[^>]*\/>/g, '<!-- Page numbering -->')
+                .replace(/fit="[^"]*"/g, '')
+                .replace(/dpi="[^"]*"/g, '');
+            
+            // Replace FreeMarker variables ${var} with data
+            result = result.replace(/\$\{([^{}]+)\}/g, (match, path) => {
+                try {
+                    // Handle simple paths like record.tranid
+                    const parts = path.trim().split('.');
+                    let value = data;
+                    
+                    for (const part of parts) {
+                        if (value === undefined || value === null) return match;
+                        
+                        // Handle formatting operations like ?string(",##0.00")
+                        if (part.includes('?')) {
+                            const [propName, formatter] = part.split('?');
+                            value = value[propName];
+                            
+                            // Simple string formatter for numbers
+                            if (formatter.startsWith('string') && typeof value === 'number') {
+                                // Just return formatted number
+                                return value.toLocaleString('en-US', {
+                                    minimumFractionDigits: 2,
+                                    maximumFractionDigits: 2
+                                });
+                            }
+                            
+                            return value;
+                        } else {
+                            value = value[part];
+                        }
+                    }
+                    
+                    if (value === undefined || value === null) return '';
+                    return value;
+                } catch (error) {
+                    console.error('Error processing variable:', error);
+                    return match;
+                }
+            });
+            
+            // Simplified handling of #if statements
+            result = result.replace(/<#if ([^>]+)>([\s\S]*?)<\/#if>/g, (match, condition, content) => {
+                try {
+                    // Very basic condition evaluation
+                    if (condition.includes('?has_content')) {
+                        const varName = condition.split('?')[0].trim();
+                        const parts = varName.split('.');
+                        let value = data;
+                        
+                        for (const part of parts) {
+                            if (value === undefined || value === null) return '';
+                            value = value[part];
+                        }
+                        
+                        return value ? content : '';
+                    } else if (condition.includes('==')) {
+                        // Basic equality check
+                        const [left, right] = condition.split('==').map(s => s.trim());
+                        
+                        if (left.startsWith('record.')) {
+                            const path = left.substring(7);
+                            const parts = path.split('.');
+                            let value = data.record;
+                            
+                            for (const part of parts) {
+                                if (value === undefined || value === null) return '';
+                                value = value[part];
+                            }
+                            
+                            // Remove quotes if present
+                            const rightValue = right.replace(/^"(.*)"$|^'(.*)'$/, '$1$2');
+                            return value == rightValue ? content : '';
+                        }
+                    } else if (condition.includes('>')) {
+                        // Basic greater than check
+                        const [left, right] = condition.split('>').map(s => s.trim());
+                        
+                        if (left.startsWith('record.')) {
+                            const path = left.substring(7);
+                            const parts = path.split('.');
+                            let value = data.record;
+                            
+                            for (const part of parts) {
+                                if (value === undefined || value === null) return '';
+                                value = value[part];
+                            }
+                            
+                            return parseFloat(value) > parseFloat(right) ? content : '';
+                        }
+                    }
+                    
+                    // Default to keeping the content
+                    return content;
+                } catch (error) {
+                    console.error('Error processing condition:', error);
+                    return match;
+                }
+            });
+            
+            // Simple handling of #list
+            result = result.replace(/<#list ([^ ]+) as ([^>]+)>([\s\S]*?)<\/#list>/g, (match, collection, item, content) => {
+                try {
+                    // Extract collection
+                    const parts = collection.split('.');
+                    let value = data;
+                    
+                    for (const part of parts) {
+                        if (value === undefined || value === null) return '';
+                        value = value[part];
+                    }
+                    
+                    if (!Array.isArray(value)) return '';
+                    
+                    // Process each item
+                    return value.map((itemValue, index) => {
+                        let itemContent = content;
+                        
+                        // Replace ${item.x} with actual values
+                        itemContent = itemContent.replace(new RegExp(`\\$\\{${item}\\.([^}]+)\\}`, 'g'), (m, prop) => {
+                            if (prop.includes('?')) {
+                                const [propName, formatter] = prop.split('?');
+                                const propValue = itemValue[propName];
+                                
+                                // Simple string formatter for numbers
+                                if (formatter.startsWith('string') && typeof propValue === 'number') {
+                                    return propValue.toLocaleString('en-US', {
+                                        minimumFractionDigits: 2,
+                                        maximumFractionDigits: 2
+                                    });
+                                }
+                                
+                                return propValue !== undefined ? propValue : '';
+                            } else {
+                                return itemValue[prop] !== undefined ? itemValue[prop] : '';
+                            }
+                        });
+                        
+                        // Replace ${item_index}
+                        itemContent = itemContent.replace(new RegExp(`\\$\\{${item}_index\\}`, 'g'), index);
+                        
+                        return itemContent;
+                    }).join('');
+                } catch (error) {
+                    console.error('Error processing list:', error);
+                    return match;
+                }
+            });
+            
+            // Handle custom FreeMarker directives for preview
+            result = result.replace(/<#assign[^>]*>[\s\S]*?<\/div>/g, '<div>FreeMarker custom assignment</div>');
+            
+            return result;
+        }
+
+        // Get element content
+        function getElementContent(element) {
+            // Clone element to work with
+            const clone = element.cloneNode(true);
+            
+            // Remove element toolbar and handles
+            const toolbar = clone.querySelector('.element-toolbar');
+            if (toolbar) clone.removeChild(toolbar);
+            
+            const label = clone.querySelector('.element-label');
+            if (label) clone.removeChild(label);
+            
+            const handles = clone.querySelectorAll('.resize-handle');
+            handles.forEach(handle => clone.removeChild(handle));
+            
+            // Get inner HTML
+            return clone.innerHTML;
+        }
+
+        // Set element content
+        function setElementContent(element, content) {
+            // Get existing elements that should be preserved
+            const toolbar = element.querySelector('.element-toolbar');
+            const label = element.querySelector('.element-label');
+            const handles = element.querySelectorAll('.resize-handle');
+            
+            // Set content
+            element.innerHTML = content;
+            
+            // Add back preserved elements
+            if (label) element.appendChild(label);
+            if (toolbar) element.appendChild(toolbar);
+            handles.forEach(handle => element.appendChild(handle));
+        }
+
+        // Convert RGB to Hex
+        function rgbToHex(rgb) {
+            if (!rgb || rgb === 'transparent' || rgb === 'rgba(0, 0, 0, 0)') return '#ffffff';
+            
+            // Check if already hex
+            if (rgb.startsWith('#')) return rgb;
+            
+            // Extract RGB values
+            const match = rgb.match(/^rgba?\((\d+),\s*(\d+),\s*(\d+)(?:,\s*(\d+(?:\.\d+)?))?\)$/);
+            if (!match) return '#ffffff';
+            
+            const r = parseInt(match[1]);
+            const g = parseInt(match[2]);
+            const b = parseInt(match[3]);
+            
+            return `#${((1 << 24) + (r << 16) + (g << 8) + b).toString(16).slice(1)}`;
+        }
+
+        // Escape HTML for display in textareas
+        function escapeHtml(unsafe) {
+            return unsafe
+                .replace(/&/g, "&amp;")
+                .replace(/</g, "&lt;")
+                .replace(/>/g, "&gt;")
+                .replace(/"/g, "&quot;")
+                .replace(/'/g, "&#039;");
+        }
+
+        // NetSuite field definitions for field explorer
+        const netsuiteFields = {
+            transaction: [
+                { name: "Transaction ID", variable: "record.tranid", description: "Unique transaction identifier" },
+                { name: "Transaction Date", variable: "record.trandate", description: "Date of the transaction" },
+                { name: "Due Date", variable: "record.duedate", description: "Payment due date" },
+                { name: "Terms", variable: "record.terms", description: "Payment terms" },
+                { name: "Memo", variable: "record.memo", description: "Transaction memo" },
+                { name: "Message", variable: "record.message", description: "Transaction message" },
+                { name: "Department", variable: "record.department", description: "Department" },
+                { name: "Location", variable: "record.location", description: "Location" },
+                { name: "PO/Reference Number", variable: "record.otherrefnum", description: "Reference number" },
+                { name: "Subtotal", variable: "record.subtotal", description: "Subtotal amount" },
+                { name: "Tax Total", variable: "record.taxtotal", description: "Total tax amount" },
+                { name: "Shipping Cost", variable: "record.shippingcost", description: "Shipping cost" },
+                { name: "Total", variable: "record.total", description: "Total amount" },
+                { name: "Amount Paid", variable: "record.amountpaid", description: "Amount already paid" },
+                { name: "Amount Remaining", variable: "record.amountremaining", description: "Remaining balance" },
+                { name: "Status", variable: "record.status", description: "Transaction status display value" },
+                { name: "Status Reference", variable: "record.statusRef", description: "Transaction status reference value" }
+            ],
+            company: [
+                { name: "Company Name", variable: "companyInformation.companyName", description: "Name of the company" },
+                { name: "Legal Name", variable: "companyInformation.legalName", description: "Legal name of the company" },
+                { name: "Address Line 1", variable: "companyInformation.address1", description: "Address line 1" },
+                { name: "Address Line 2", variable: "companyInformation.address2", description: "Address line 2" },
+                { name: "City", variable: "companyInformation.city", description: "City" },
+                { name: "State", variable: "companyInformation.state", description: "State" },
+                { name: "Zip", variable: "companyInformation.zip", description: "Zip/Postal code" },
+                { name: "Country", variable: "companyInformation.country", description: "Country" },
+                { name: "Phone", variable: "companyInformation.phone", description: "Phone number" },
+                { name: "Email", variable: "companyInformation.email", description: "Email address" },
+                { name: "Logo URL", variable: "companyInformation.logo", description: "URL to company logo" },
+                { name: "Federal ID Number", variable: "companyInformation.federalIdNumber", description: "Federal ID number" },
+                { name: "Tax ID Number", variable: "companyInformation.taxIdNumber", description: "Tax ID number" }
+            ],
+            customer: [
+                { name: "Entity ID", variable: "record.entity.entityid", description: "Entity ID/Name" },
+                { name: "Company Name", variable: "record.entity.companyname", description: "Company name" },
+                { name: "Is Person", variable: "record.entity.isperson", description: "Whether entity is a person (T/F)" },
+                { name: "First Name", variable: "record.entity.firstname", description: "First name" },
+                { name: "Last Name", variable: "record.entity.lastname", description: "Last name" },
+                { name: "Email", variable: "record.entity.email", description: "Email address" },
+                { name: "Phone", variable: "record.entity.phone", description: "Phone number" }
+            ],
+            items: [
+                { name: "Item Name", variable: "item.item", description: "Item name within loop" },
+                { name: "Description", variable: "item.description", description: "Item description" },
+                { name: "Quantity", variable: "item.quantity", description: "Quantity ordered" },
+                { name: "Units", variable: "item.units", description: "Unit of measure" },
+                { name: "Rate", variable: "item.rate", description: "Item rate/price" },
+                { name: "Amount", variable: "item.amount", description: "Line total amount" },
+                { name: "Tax Rate", variable: "item.taxrate1", description: "Tax rate percentage" },
+                { name: "Tax Amount", variable: "item.tax1amt", description: "Tax amount" },
+                { name: "Loop Index", variable: "item_index", description: "Current loop index (0-based)" }
+            ],
+            address: [
+                { name: "Bill Address 1", variable: "record.entity.billaddress1", description: "Billing address line 1" },
+                { name: "Bill Address 2", variable: "record.entity.billaddress2", description: "Billing address line 2" },
+                { name: "Bill City", variable: "record.entity.billcity", description: "Billing city" },
+                { name: "Bill State", variable: "record.entity.billstate", description: "Billing state" },
+                { name: "Bill Zip", variable: "record.entity.billzip", description: "Billing zip code" },
+                { name: "Bill Country", variable: "record.entity.billcountry", description: "Billing country" },
+                { name: "Ship Address 1", variable: "record.entity.shipaddress1", description: "Shipping address line 1" },
+                { name: "Ship Address 2", variable: "record.entity.shipaddress2", description: "Shipping address line 2" },
+                { name: "Ship City", variable: "record.entity.shipcity", description: "Shipping city" },
+                { name: "Ship State", variable: "record.entity.shipstate", description: "Shipping state" },
+                { name: "Ship Zip", variable: "record.entity.shipzip", description: "Shipping zip code" },
+                { name: "Ship Country", variable: "record.entity.shipcountry", description: "Shipping country" }
+            ],
+            custom: [
+                { name: "Custom Field 1", variable: "record.custbody_field1", description: "Custom transaction body field" },
+                { name: "Custom Field 2", variable: "record.custbody_field2", description: "Custom transaction body field" },
+                { name: "Custom Entity Field", variable: "record.entity.custentity_field1", description: "Custom entity field" },
+                { name: "Custom Line Item Field", variable: "item.custcol_field1", description: "Custom line item field" }
+            ]
+        };
+        
+        // Common validation rules for NetSuite templates
+        const validationRules = [
+            {
+                name: "DOCTYPE Declaration",
+                check: function(code) {
+                    if (!code.includes('<!DOCTYPE pdf PUBLIC "-//big.faceless.org//report" "report-1.1.dtd">')) {
+                        return {
+                            type: "error",
+                            message: "Missing BFO DOCTYPE declaration required for NetSuite Advanced PDF templates"
+                        };
+                    }
+                    return null;
+                }
+            },
+            {
+                name: "PDF Root Element",
+                check: function(code) {
+                    if (!code.includes('<pdf>') || !code.includes('</pdf>')) {
+                        return {
+                            type: "error",
+                            message: "Missing <pdf> root element required for NetSuite templates"
+                        };
+                    }
+                    return null;
+                }
+            },
+            {
+                name: "Body Element",
+                check: function(code) {
+                    if (!code.includes('<body') || !code.includes('</body>')) {
+                        return {
+                            type: "error",
+                            message: "Missing <body> element in template"
+                        };
+                    }
+                    return null;
+                }
+            },
+            {
+                name: "FreeMarker Syntax",
+                check: function(code) {
+                    // Check for unclosed FreeMarker tags
+                    const openIfs = (code.match(/<#if/g) || []).length;
+                    const closeIfs = (code.match(/<\/#if>/g) || []).length;
+                    if (openIfs > closeIfs) {
+                        return {
+                            type: "error",
+                            message: `Unclosed <#if> tags found (${openIfs - closeIfs} missing)`
+                        };
+                    }
+                    
+                    const openLists = (code.match(/<#list/g) || []).length;
+                    const closeLists = (code.match(/<\/#list>/g) || []).length;
+                    if (openLists > closeLists) {
+                        return {
+                            type: "error",
+                            message: `Unclosed <#list> tags found (${openLists - closeLists} missing)`
+                        };
+                    }
+                    
+                    return null;
+                }
+            },
+            {
+                name: "Required Table Attributes",
+                check: function(code) {
+                    const tables = code.match(/<table(?![^>]*pdfTable="true")[^>]*>/g);
+                    if (tables && tables.length > 0) {
+                        return {
+                            type: "warning",
+                            message: `Found ${tables.length} table(s) without pdfTable="true" attribute which may not render correctly`
+                        };
+                    }
+                    return null;
+                }
+            },
+            {
+                name: "Image Attributes",
+                check: function(code) {
+                    const images = code.match(/<img[^>]*>/g);
+                    if (images) {
+                        const imgWithoutFit = images.filter(img => !img.includes('fit='));
+                        if (imgWithoutFit.length > 0) {
+                            return {
+                                type: "warning",
+                                message: `Found ${imgWithoutFit.length} image(s) without 'fit' attribute which helps control scaling`
+                            };
+                        }
+                    }
+                    return null;
+                }
+            },
+            {
+                name: "Page Numbering",
+                check: function(code) {
+                    if (!code.includes('<pagenumber-at')) {
+                        return {
+                            type: "info",
+                            message: "No page numbering found. For multi-page documents, consider adding <pagenumber-at> tag"
+                        };
+                    }
+                    return null;
+                }
+            }
+        ];
+        
+        // Initialize version history
+        let versionHistory = [];
+        
+        // Initialize the app
+        init();
+        
+        // Field Explorer Functions
+        function showFieldExplorer() {
+            const fieldExplorerModal = document.getElementById('fieldExplorerModal');
+            const fieldCategory = document.getElementById('fieldCategory');
+            const fieldSearch = document.getElementById('fieldSearch');
+            const fieldList = document.getElementById('fieldList');
+            
+            // Populate field list
+            populateFieldList(fieldCategory.value, '');
+            
+            // Setup field category change event
+            fieldCategory.addEventListener('change', () => {
+                populateFieldList(fieldCategory.value, fieldSearch.value);
+            });
+            
+            // Setup search input event
+            fieldSearch.addEventListener('input', () => {
+                populateFieldList(fieldCategory.value, fieldSearch.value);
+            });
+            
+            // Show modal
+            fieldExplorerModal.classList.add('open');
+            
+            // Setup close button
+            const closeFieldBtn = document.getElementById('closeFieldBtn');
+            const closeFieldExplorerModal = document.getElementById('closeFieldExplorerModal');
+            
+            closeFieldBtn.addEventListener('click', () => {
+                fieldExplorerModal.classList.remove('open');
+            });
+            
+            closeFieldExplorerModal.addEventListener('click', () => {
+                fieldExplorerModal.classList.remove('open');
+            });
+        }
+        
+        function populateFieldList(category, searchTerm) {
+            const fieldList = document.getElementById('fieldList');
+            fieldList.innerHTML = '';
+            
+            const fields = netsuiteFields[category] || [];
+            const filteredFields = searchTerm ? 
+                fields.filter(field => 
+                    field.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
+                    field.variable.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                    field.description.toLowerCase().includes(searchTerm.toLowerCase())
+                ) : 
+                fields;
+            
+            filteredFields.forEach(field => {
+                const row = document.createElement('tr');
+                
+                const nameCell = document.createElement('td');
+                nameCell.textContent = field.name;
+                nameCell.title = field.description;
+                
+                const variableCell = document.createElement('td');
+                const codeEl = document.createElement('code');
+                codeEl.textContent = '${' + field.variable + '}';
+                variableCell.appendChild(codeEl);
+                
+                const actionCell = document.createElement('td');
+                const copyBtn = document.createElement('button');
+                copyBtn.className = 'field-copy-btn';
+                copyBtn.textContent = 'Copy';
+                copyBtn.addEventListener('click', () => {
+                    copyFieldToClipboard(field.variable);
+                });
+                
+                const insertBtn = document.createElement('button');
+                insertBtn.className = 'field-copy-btn';
+                insertBtn.textContent = 'Insert';
+                insertBtn.style.marginLeft = '5px';
+                insertBtn.addEventListener('click', () => {
+                    insertFieldAtCursor(field.variable);
+                });
+                
+                actionCell.appendChild(copyBtn);
+                actionCell.appendChild(insertBtn);
+                
+                row.appendChild(nameCell);
+                row.appendChild(variableCell);
+                row.appendChild(actionCell);
+                
+                fieldList.appendChild(row);
+            });
+        }
+        
+        function copyFieldToClipboard(variable) {
+            const fieldText = '${' + variable + '}';
+            navigator.clipboard.writeText(fieldText).then(() => {
+                showNotification(`Copied ${variable} to clipboard`);
+            });
+        }
+        
+        function insertFieldAtCursor(variable) {
+            const fieldText = '${' + variable + '}';
+            
+            // Check if element content is selected in properties panel
+            const elementContent = document.getElementById('elementContent');
+            if (elementContent && document.activeElement === elementContent) {
+                // Insert at cursor position in the text area
+                const startPos = elementContent.selectionStart;
+                const endPos = elementContent.selectionEnd;
+                elementContent.value = elementContent.value.substring(0, startPos) + fieldText + elementContent.value.substring(endPos);
+                
+                // Set selection after the inserted text
+                elementContent.selectionStart = startPos + fieldText.length;
+                elementContent.selectionEnd = startPos + fieldText.length;
+                
+                // Trigger input event to update the element
+                const event = new Event('input', { bubbles: true });
+                elementContent.dispatchEvent(event);
+                
+                showNotification(`Inserted ${variable} at cursor`);
+            } else if (selectedElement) {
+                // Append to selected element's content
+                const content = getElementContent(selectedElement);
+                setElementContent(selectedElement, content + fieldText);
+                
+                // Update properties panel if open
+                if (elementContent) {
+                    elementContent.value = getElementContent(selectedElement);
+                }
+                
+                // Update code
+                updateCode();
+                
+                showNotification(`Added ${variable} to selected element`);
+            } else {
+                // Copy to clipboard if no insertion point
+                navigator.clipboard.writeText(fieldText).then(() => {
+                    showNotification(`Copied ${variable} to clipboard`);
+                });
+            }
+            
+            // Close the modal
+            document.getElementById('fieldExplorerModal').classList.remove('open');
+        }
+        
+        // Validation Functions
+        function validateTemplate() {
+            const validateModal = document.getElementById('validateModal');
+            const validationResults = document.getElementById('validationResults');
+            
+            // Show modal with loading state
+            validateModal.classList.add('open');
+            validationResults.innerHTML = `
+                <div class="validation-loading">
+                    <div class="spinner" style="width: 30px; height: 30px;"></div>
+                    <p>Validating template...</p>
+                </div>
+            `;
+            
+            // Get code
+            const code = codeEditor.getValue();
+            
+            // Simulate validation delay
+            setTimeout(() => {
+                // Run validation rules
+                const results = [];
+                let hasErrors = false;
+                
+                for (const rule of validationRules) {
+                    const result = rule.check(code);
+                    if (result) {
+                        results.push({
+                            name: rule.name,
+                            ...result
+                        });
+                        
+                        if (result.type === 'error') {
+                            hasErrors = true;
+                        }
+                    }
+                }
+                
+                // Generate validation results HTML
+                let resultsHTML = '';
+                
+                if (results.length === 0) {
+                    resultsHTML = `
+                        <div class="validation-item validation-success">
+                            <div class="validation-item-title">Template Validation Successful</div>
+                            <p>No issues found in the template.</p>
+                        </div>
+                    `;
+                } else {
+                    resultsHTML = `
+                        <div class="validation-item ${hasErrors ? 'validation-error' : 'validation-warning'}">
+                            <div class="validation-item-title">Validation Results</div>
+                            <p>Found ${results.length} issue(s) in the template.</p>
+                        </div>
+                    `;
+                    
+                    // Add individual issues
+                    results.forEach(result => {
+                        resultsHTML += `
+                            <div class="validation-item validation-${result.type}">
+                                <div class="validation-item-title">${result.name}</div>
+                                <p>${result.message}</p>
+                            </div>
+                        `;
+                    });
+                }
+                
+                // Update results
+                validationResults.innerHTML = resultsHTML;
+                
+                // Setup close button
+                const closeValidateBtn = document.getElementById('closeValidateBtn');
+                const closeValidateModal = document.getElementById('closeValidateModal');
+                
+                closeValidateBtn.addEventListener('click', () => {
+                    validateModal.classList.remove('open');
+                });
+                
+                closeValidateModal.addEventListener('click', () => {
+                    validateModal.classList.remove('open');
+                });
+            }, 1000);
+        }
+        
+        // Import Functions
+        function showImportModal() {
+            const importModal = document.getElementById('importModal');
+            const importSource = document.getElementById('importSource');
+            const importFileSection = document.getElementById('importFileSection');
+            const importCodeSection = document.getElementById('importCodeSection');
+            
+            // Set default values
+            importSource.value = 'file';
+            importFileSection.style.display = 'block';
+            importCodeSection.style.display = 'none';
+            
+            // Setup import source change event
+            importSource.addEventListener('change', () => {
+                if (importSource.value === 'file') {
+                    importFileSection.style.display = 'block';
+                    importCodeSection.style.display = 'none';
+                } else {
+                    importFileSection.style.display = 'none';
+                    importCodeSection.style.display = 'block';
+                }
+            });
+            
+            // Show modal
+            importModal.classList.add('open');
+            
+            // Setup close and cancel buttons
+            const closeImportModal = document.getElementById('closeImportModal');
+            const cancelImportBtn = document.getElementById('cancelImportBtn');
+            
+            closeImportModal.addEventListener('click', () => {
+                importModal.classList.remove('open');
+            });
+            
+            cancelImportBtn.addEventListener('click', () => {
+                importModal.classList.remove('open');
+            });
+            
+            // Setup import button
+            const importBtn = document.getElementById('importBtn');
+            importBtn.addEventListener('click', importTemplate);
+        }
+        
+        function importTemplate() {
+            const importSource = document.getElementById('importSource');
+            const importFile = document.getElementById('importFile');
+            const importCode = document.getElementById('importCode');
+            
+            // Show loading overlay
+            loadingOverlay.style.display = 'flex';
+            
+            if (importSource.value === 'file' && importFile.files.length > 0) {
+                // Import from file
+                const file = importFile.files[0];
+                const reader = new FileReader();
+                
+                reader.onload = function(e) {
+                    const content = e.target.result;
+                    processImportedTemplate(content);
+                };
+                
+                reader.readAsText(file);
+            } else if (importSource.value === 'code' && importCode.value.trim() !== '') {
+                // Import from pasted code
+                processImportedTemplate(importCode.value);
+            } else {
+                // No valid import source
+                loadingOverlay.style.display = 'none';
+                showNotification('No template data provided', true);
+            }
+            
+            // Close modal
+            document.getElementById('importModal').classList.remove('open');
+        }
+        
+        function processImportedTemplate(templateCode) {
+            // Check if it's a valid NetSuite template
+            if (!templateCode.includes('<!DOCTYPE pdf') && !templateCode.includes('<pdf>')) {
+                loadingOverlay.style.display = 'none';
+                showNotification('Invalid template format. Not a NetSuite Advanced PDF template', true);
+                return;
+            }
+            
+            // Set code in editor
+            codeEditor.setValue(templateCode);
+            
+            // Clear canvas
+            clearCanvas();
+            
+            // Parse template and create elements
+            // This is a simplified version that just creates the basic elements
+            // In a real implementation, this would parse the entire template structure
+            
+            // Create header element
+            createElementOnCanvas('header', 20, 20);
+            
+            // Create body content section
+            createElementOnCanvas('section', 20, 130);
+            
+            // Create footer element
+            createElementOnCanvas('footer', 20, 600);
+            
+            // Update code
+            updateCode();
+            
+            // Hide loading overlay
+            loadingOverlay.style.display = 'none';
+            
+            // Show success notification
+            showNotification('Template imported successfully');
+            
+            // Switch to design tab
+            document.querySelector('.toolbar-tab[data-tab="design"]').click();
+        }
+        
+        // Version Management Functions
+        function showSaveVersionModal() {
+            const saveVersionModal = document.getElementById('saveVersionModal');
+            const versionName = document.getElementById('versionName');
+            
+            // Set default name
+            const now = new Date();
+            versionName.value = `Version ${versionHistory.length + 1} - ${now.toLocaleString()}`;
+            
+            // Show modal
+            saveVersionModal.classList.add('open');
+            
+            // Setup close and cancel buttons
+            const closeSaveVersionModal = document.getElementById('closeSaveVersionModal');
+            const cancelSaveVersionBtn = document.getElementById('cancelSaveVersionBtn');
+            
+            closeSaveVersionModal.addEventListener('click', () => {
+                saveVersionModal.classList.remove('open');
+            });
+            
+            cancelSaveVersionBtn.addEventListener('click', () => {
+                saveVersionModal.classList.remove('open');
+            });
+            
+            // Setup save button
+            const saveVersionBtn = document.getElementById('saveVersionBtn');
+            saveVersionBtn.addEventListener('click', saveVersion);
+        }
+        
+        function saveVersion() {
+            const versionName = document.getElementById('versionName');
+            const versionNotes = document.getElementById('versionNotes');
+            
+            // Get elements data
+            const elements = canvasArea.querySelectorAll('.template-element');
+            const elementsData = Array.from(elements).map(element => {
+                return {
+                    id: element.getAttribute('data-id'),
+                    type: element.getAttribute('data-type'),
+                    x: parseFloat(element.style.left),
+                    y: parseFloat(element.style.top),
+                    width: parseFloat(element.style.width),
+                    height: parseFloat(element.style.height),
+                    properties: {
+                        backgroundColor: element.style.backgroundColor,
+                        border: element.style.border,
+                        borderTop: element.style.borderTop,
+                        padding: element.style.padding,
+                        content: getElementContent(element)
+                    }
+                };
+            });
+            
+            // Create version data
+            const versionData = {
+                id: Date.now().toString(),
+                name: versionName.value || `Version ${versionHistory.length + 1}`,
+                notes: versionNotes.value || '',
+                timestamp: new Date().toISOString(),
+                elements: elementsData,
+                code: codeEditor.getValue()
+            };
+            
+            // Add to version history
+            versionHistory.push(versionData);
+            
+            // Save version history to localStorage
+            try {
+                localStorage.setItem('netsuiteTemplateVersions', JSON.stringify(versionHistory));
+            } catch (error) {
+                console.error('Error saving version history:', error);
+            }
+            
+            // Close modal
+            document.getElementById('saveVersionModal').classList.remove('open');
+            
+            // Show notification
+            showNotification('Version saved successfully');
+        }
+        
+        // Add event listeners for new buttons
+        document.addEventListener('DOMContentLoaded', function() {
+            // Field Explorer Button
+            const fieldExplorerBtn = document.getElementById('fieldExplorerBtn');
+            if (fieldExplorerBtn) {
+                fieldExplorerBtn.addEventListener('click', showFieldExplorer);
+            }
+            
+            // Validate Button
+            const validateBtn = document.getElementById('validateBtn');
+            if (validateBtn) {
+                validateBtn.addEventListener('click', validateTemplate);
+            }
+            
+            // Import Template Button
+            const importTemplateBtn = document.getElementById('importTemplateBtn');
+            if (importTemplateBtn) {
+                importTemplateBtn.addEventListener('click', showImportModal);
+            }
+        });
+    </script>
+</body>
+</html>
